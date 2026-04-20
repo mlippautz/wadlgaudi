@@ -1,0 +1,102 @@
+:root {
+  /* Ultra-Premium Pure Black Palette */
+  --bg-base: #000000;
+  --bg-gradient: linear-gradient(180deg, #000000 0%, #050505 100%);
+  --surface-color: rgba(30, 30, 30, 0.4);
+  --surface-border: rgba(255, 255, 255, 0.15);
+  --primary-color: #ffffff;
+  --primary-hover: #e0e0e0;
+  --secondary-color: #333333;
+  --text-main: #ffffff;
+  --text-muted: #777777;
+  
+  --font-family: 'Outfit', 'Inter', sans-serif;
+  --border-radius-lg: 20px;
+  --border-radius-md: 14px;
+  --border-radius-sm: 10px;
+  
+  --shadow-glass: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+  --backdrop-blur: blur(20px);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-main);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: var(--surface-color);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-glass);
+}
+
+/* Base button styles */
+button {
+  font-family: var(--font-family);
+  background: var(--primary-color);
+  color: #000;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  padding: 0.75rem 1.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+/* Only invert text color for primary-style buttons on hover */
+button:not(.btn-icon):not(.skip-btn):not(.btn-danger):hover {
+  color: #000;
+}
+
+.btn-icon, .skip-btn, .btn-danger {
+  color: #fff !important;
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+input {
+  font-family: var(--font-family);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--surface-border);
+  color: var(--text-main);
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius-sm);
+  outline: none;
+  width: 100%;
+  transition: border-color 0.3s ease;
+}
+
+input:focus {
+  border-color: var(--primary-color);
+}

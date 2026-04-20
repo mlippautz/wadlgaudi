@@ -1,0 +1,28 @@
+{
+  "name": "wadlgaudi-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "@types/bip39": "^3.0.4",
+    "@types/mapbox__polyline": "^1.0.5",
+    "jsdom": "^29.0.2",
+    "tsx": "^4.21.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.4",
+    "vitest": "^4.1.4"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.19.9",
+    "@atproto/oauth-client-browser": "^0.3.41",
+    "@mapbox/polyline": "^1.2.1",
+    "bip39": "^3.1.0",
+    "fast-xml-parser": "^5.7.1"
+  }
+}
