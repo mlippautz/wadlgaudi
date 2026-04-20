@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@types/bip39": "^3.0.4",
+    "@types/leaflet": "^1.9.12",
     "@types/mapbox__polyline": "^1.0.5",
     "jsdom": "^29.0.2",
     "tsx": "^4.21.0",
@@ -23,6 +24,8 @@
     "@atproto/oauth-client-browser": "^0.3.41",
     "@mapbox/polyline": "^1.2.1",
     "bip39": "^3.1.0",
-    "fast-xml-parser": "^5.7.1"
+    "buffer": "^6.0.3",
+    "fast-xml-parser": "^5.7.1",
+    "leaflet": "^1.9.4"
   }
 }

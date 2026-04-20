@@ -1,4 +1,10 @@
 import * as bip39 from 'bip39';
+import { Buffer } from 'buffer';
+
+// Browser polyfill for Buffer
+if (typeof (globalThis as any).Buffer === 'undefined') {
+    (globalThis as any).Buffer = Buffer;
+}
 
 /**
  * Ensures the Web Crypto API is available.
@@ -101,4 +107,37 @@ export async function generateX25519KeyPair(): Promise<CryptoKeyPair> {
         true,
         ['deriveKey', 'deriveBits']
     ) as Promise<CryptoKeyPair>;
+}
+
+/**
+ * Derives a deterministic AES-GCM Master Key from a BIP39 phrase.
+ * This is used for E2EE key backup and recovery.
+ */
+export async function deriveMasterKey(phrase: string): Promise<CryptoKey> {
+    const crypto = getCrypto();
+    const seedBuffer = await bip39.mnemonicToSeed(phrase);
+    const seed = new Uint8Array(seedBuffer);
+    
+    // Import the seed as a raw key for derivation
+    const baseKey = await crypto.subtle.importKey(
+        'raw',
+        seed,
+        'PBKDF2',
+        false,
+        ['deriveKey']
+    );
+
+    // Derive the AES-GCM Master Key
+    return crypto.subtle.deriveKey(
+        {
+            name: 'PBKDF2',
+            salt: new TextEncoder().encode('wadlgaudi-master-salt'), // Deterministic salt for recovery
+            iterations: 100000,
+            hash: 'SHA-256'
+        },
+        baseKey,
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt']
+    );
 }

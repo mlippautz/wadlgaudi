@@ -137,6 +137,28 @@ export class WUpload extends HTMLElement {
             
             let atpRecordKey: string | undefined = undefined;
 
+            // Get or Prompt for Recovery Phrase (for E2EE Backup)
+            let phrase = localStorage.getItem('wadlgaudi_phrase');
+            if (!phrase) {
+                phrase = prompt('Enter your 12-word recovery phrase for E2EE backup (or leave empty to skip sync-ability):');
+                if (phrase) localStorage.setItem('wadlgaudi_phrase', phrase);
+            }
+
+            let encryptedSummary = "{}";
+            if (phrase) {
+                const { deriveMasterKey, exportKeyToBase64 } = await import('../lib/crypto');
+                const masterKey = await deriveMasterKey(phrase);
+                const activityKeyBase64 = await exportKeyToBase64(key);
+                const summaryObj = {
+                    polyline: summary.polyline,
+                    activityKey: activityKeyBase64
+                };
+                const summaryBytes = new TextEncoder().encode(JSON.stringify(summaryObj));
+                const encryptedSummaryBytes = await encryptSymmetric(masterKey, summaryBytes);
+                encryptedSummary = btoa(String.fromCharCode(...encryptedSummaryBytes));
+                statusMsg.innerHTML += 'E2EE Summary & Key backup prepared.<br>';
+            }
+
             // If we have an ATP Client and are authenticated, upload to the AT Protocol
             if (this.atpClient?.agent && this.atpClient.sessionDid) {
                 try {
@@ -149,12 +171,13 @@ export class WUpload extends HTMLElement {
                     await this.atpClient.publishActivityRecord(rkey, {
                         activityBlob: blob,
                         accessList: {}, // Empty map for now
-                        encryptedSummary: "{}", // Placeholder for encrypted summary
+                        encryptedSummary: encryptedSummary,
                         sportType: summary.sportType,
                         distance: Math.round(summary.distance),
                         duration: Math.round(summary.duration),
-                        calories: summary.calories,
-                        maxSpeed: summary.maxSpeed,
+                        calories: summary.calories ? Math.round(summary.calories) : undefined,
+                        maxSpeed: summary.maxSpeed ? Math.round(summary.maxSpeed) : 0,
+                        polyline: summary.polyline,
                         createdAt: new Date().toISOString()
                     });
                     atpRecordKey = rkey;

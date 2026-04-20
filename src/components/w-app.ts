@@ -178,7 +178,11 @@ export class WApp extends HTMLElement {
                     <div class="header-content">
                         <div style="display: flex; align-items: baseline; gap: 1rem;">
                             <a href="#/feed" class="logo">Wadlgaudi</a>
-                            <span class="user-handle">${this.atpClient.handle ? `@${this.atpClient.handle}` : 'Offline Mode'}</span>
+                            <span class="user-handle">
+                                ${this.atpClient.handle 
+                                    ? `@${this.atpClient.handle}` 
+                                    : (this.atpClient.sessionDid ? 'Authenticated' : 'Offline Mode')}
+                            </span>
                         </div>
                         <div class="actions">
                             <button id="debug-btn" class="btn-icon">

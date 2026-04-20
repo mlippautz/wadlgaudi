@@ -85,6 +85,11 @@ button:active {
   transform: translateY(0);
 }
 
+.leaflet-tile-pane {
+  /* Ultra-modern dark map look: Invert colors to match dark theme */
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+
 input {
   font-family: var(--font-family);
   background: rgba(0, 0, 0, 0.2);
@@ -99,4 +104,44 @@ input {
 
 input:focus {
   border-color: var(--primary-color);
+}
+
+/* Map Styles */
+#map {
+  height: 400px;
+  width: 100%;
+  margin: 1.5rem 0;
+  z-index: 1;
+}
+
+.leaflet-container {
+  background: var(--bg-base) !important;
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow-glass);
+}
+
+.leaflet-control-zoom {
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--border-radius-sm) !important;
+  overflow: hidden;
+  box-shadow: none !important;
+}
+
+.leaflet-control-zoom-in, .leaflet-control-zoom-out {
+  background: var(--surface-color) !important;
+  color: var(--text-main) !important;
+  border-bottom: 1px solid var(--surface-border) !important;
+  backdrop-filter: var(--backdrop-blur);
+}
+
+.leaflet-control-attribution {
+  background: rgba(0,0,0,0.5) !important;
+  color: var(--text-muted) !important;
+  font-size: 10px !important;
+  backdrop-filter: var(--backdrop-blur);
+}
+
+.leaflet-control-attribution a {
+  color: var(--text-muted) !important;
 }

@@ -23,6 +23,7 @@ export interface WadlgaudiActivity {
     duration?: number;
     calories?: number;
     maxSpeed?: number;
+    polyline?: string;
     
     // Symmetrically encrypted summary payload (JSON string containing downsampled map polyline)
     encryptedSummary: string;

@@ -3,6 +3,11 @@ if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
 }
 
 import './style.css';
+import { Buffer } from 'buffer';
+
+if (typeof (globalThis as any).Buffer === 'undefined') {
+    (globalThis as any).Buffer = Buffer;
+}
 
 // Import all Web Components to register them with the browser
 import './components/w-login';

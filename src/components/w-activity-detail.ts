@@ -1,9 +1,14 @@
 import { getActivities } from '../lib/storage';
+import { extractCoordinates } from '../lib/activity-parser';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 export class WActivityDetail extends HTMLElement {
     static get observedAttributes() {
         return ['activity-id'];
     }
+
+    private map: L.Map | null = null;
 
     connectedCallback() {
         this.render();
@@ -20,6 +25,12 @@ export class WActivityDetail extends HTMLElement {
         if (!activity) {
             this.innerHTML = `<div class="glass-panel" style="padding: 2rem; text-align: center;">Activity not found.</div>`;
             return;
+        }
+
+        // Cleanup existing map if any
+        if (this.map) {
+            this.map.remove();
+            this.map = null;
         }
 
         const distanceKm = (activity.distance / 1000).toFixed(2);
@@ -99,6 +110,15 @@ export class WActivityDetail extends HTMLElement {
                 h2 { font-size: 2.5rem; margin-bottom: 0.5rem; }
                 .timestamp { color: var(--text-muted); }
                 
+                #map-status {
+                    padding: 1.5rem;
+                    text-align: center;
+                    color: var(--text-muted);
+                    background: rgba(255,255,255,0.05);
+                    border-radius: var(--border-radius-lg);
+                    margin: 1.5rem 0;
+                }
+
                 .more-details {
                     margin-top: 3rem;
                     padding-top: 2rem;
@@ -131,6 +151,9 @@ export class WActivityDetail extends HTMLElement {
                     <h2>Activity Summary</h2>
                     <p class="timestamp">${dateFmt}</p>
                 </div>
+
+                <div id="map-status">Loading track...</div>
+                <div id="map"></div>
 
                 <div class="hero-stats">
                     <div class="stat-card glass-panel">
@@ -180,14 +203,94 @@ export class WActivityDetail extends HTMLElement {
         const blob = await getBlob(activity.id);
         const statusEl = this.querySelector('#blob-status');
         const actionsEl = this.querySelector('#blob-actions') as HTMLElement;
+        const mapStatusEl = this.querySelector('#map-status') as HTMLElement;
 
         if (blob) {
             if (statusEl) statusEl.innerHTML = '<span style="color: var(--secondary-color)">✅ Available locally</span>';
             if (actionsEl) actionsEl.style.display = 'block';
             
             this.querySelector('#download-btn')?.addEventListener('click', () => this.downloadDecrypted(activity, blob));
+
+            // Initialize Map
+            this.initMap(activity, blob);
         } else {
             if (statusEl) (statusEl as HTMLElement).innerText = 'Not available locally';
+            if (mapStatusEl) mapStatusEl.innerText = 'Track data not available locally.';
+        }
+    }
+
+    async initMap(activity: any, encryptedBlob: Uint8Array) {
+        try {
+            const { importKeyFromBase64, decryptSymmetric } = await import('../lib/crypto');
+            const key = await importKeyFromBase64(activity.encryptionKey);
+            const decryptedBytes = await decryptSymmetric(key, encryptedBlob);
+            const tcxString = new TextDecoder().decode(decryptedBytes);
+            
+            const coordinates = extractCoordinates(tcxString);
+            if (coordinates.length === 0) {
+                const mapStatusEl = this.querySelector('#map-status') as HTMLElement;
+                if (mapStatusEl) mapStatusEl.innerText = 'No GPS coordinates found in track.';
+                return;
+            }
+
+            const mapEl = this.querySelector('#map') as HTMLElement;
+            if (!mapEl) return;
+
+            // Initialize Leaflet
+            this.map = L.map(mapEl, {
+                scrollWheelZoom: false // Better UX for scrolling pages
+            });
+
+            // OpenTopoMap layer
+            L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                maxZoom: 17,
+                attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+            }).addTo(this.map);
+
+            // Add track halo (improves readability on complex topo details)
+            L.polyline(coordinates, {
+                color: '#000000',
+                weight: 9,
+                opacity: 0.4,
+                lineJoin: 'round'
+            }).addTo(this.map);
+
+            // Add track polyline
+            const track = L.polyline(coordinates, {
+                color: '#ffffff',
+                weight: 4,
+                opacity: 1,
+                lineJoin: 'round'
+            }).addTo(this.map);
+
+            // Add start/end markers
+            L.circleMarker(coordinates[0], {
+                radius: 6,
+                fillColor: '#10b981',
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 1
+            }).addTo(this.map);
+
+            L.circleMarker(coordinates[coordinates.length - 1], {
+                radius: 6,
+                fillColor: '#ef4444',
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 1
+            }).addTo(this.map);
+
+            // Fit bounds
+            this.map.fitBounds(track.getBounds(), { padding: [30, 30] });
+
+            // Remove status message
+            this.querySelector('#map-status')?.remove();
+        } catch (err) {
+            console.error('Map initialization failed', err);
+            const mapStatusEl = this.querySelector('#map-status') as HTMLElement;
+            if (mapStatusEl) mapStatusEl.innerText = 'Failed to load map track.';
         }
     }
 

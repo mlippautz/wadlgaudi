@@ -46,19 +46,22 @@ export class AtpClient {
             this.handle = (result.session as any).handle || (result.session as any).preferred_username;
             console.log('[Bluesky] Initial handle check:', this.handle);
             
-            // If handle is still missing, fetch it from the profile using a public call
-            if (!this.handle && this.sessionDid) {
+            // If handle is missing or set to 'handle.invalid', fetch it from the profile
+            if ((!this.handle || this.handle === 'handle.invalid') && this.sessionDid && this.agent) {
                 try {
-                    console.log('[Bluesky] Fetching profile via public AppView for DID:', this.sessionDid);
-                    // Use the public AppView API which typically allows unauthenticated getProfile
-                    const response = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${this.sessionDid}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        this.handle = data.handle;
-                        console.log('[Bluesky] Handle resolved via public AppView:', this.handle);
-                    }
+                    console.log('[Bluesky] Fetching profile via Agent for DID:', this.sessionDid);
+                    const response = await this.agent.app.bsky.actor.getProfile({ actor: this.sessionDid });
+                    this.handle = response.data.handle;
+                    console.log('[Bluesky] Handle resolved via Agent (getProfile):', this.handle);
                 } catch (e) {
-                    console.error('[Bluesky] Failed to fetch profile handle:', e);
+                    console.warn('[Bluesky] Failed to fetch profile via Agent, trying describeRepo...', e);
+                    try {
+                        const repo = await this.agent.com.atproto.repo.describeRepo({ repo: this.sessionDid });
+                        this.handle = repo.data.handle;
+                        console.log('[Bluesky] Handle resolved via Agent (describeRepo):', this.handle);
+                    } catch (e2) {
+                        console.error('[Bluesky] Failed all handle resolution attempts:', e2);
+                    }
                 }
             }
             return true;
@@ -115,6 +118,16 @@ export class AtpClient {
         });
         console.log('[Bluesky] Blob uploaded successfully. CID:', response.data.blob.ref.toString());
         return response.data.blob;
+    }
+
+    /**
+     * Downloads a blob from the AT Protocol.
+     */
+    async downloadBlob(did: string, cid: string): Promise<Uint8Array> {
+        if (!this.agent) throw new Error("Not authenticated");
+        console.log(`[Bluesky] Downloading blob ${cid} for DID ${did}...`);
+        const response = await this.agent.com.atproto.sync.getBlob({ did, cid });
+        return response.data;
     }
 
     /**
