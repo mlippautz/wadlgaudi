@@ -169,9 +169,9 @@ export class WUpload extends HTMLElement {
             const { exportKeyToBase64 } = await import('../lib/crypto');
             const keyBase64 = await exportKeyToBase64(key);
 
-            // Save to local storage
-            saveActivity(summary, atpRecordKey, keyBase64);
-            statusMsg.innerHTML += 'Activity saved to local storage.<br>';
+            // Save to local storage (including the blob)
+            await saveActivity(summary, atpRecordKey, keyBase64, encryptedPackage);
+            statusMsg.innerHTML += 'Activity saved to local storage (including full blob).<br>';
 
             btn.innerText = 'Success!';
             

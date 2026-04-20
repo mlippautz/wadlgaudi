@@ -1,4 +1,5 @@
 import type { ActivitySummary } from './activity-parser';
+import * as blobStorage from './blob-storage';
 
 export interface StoredActivity extends ActivitySummary {
     id: string;
@@ -10,17 +11,28 @@ export interface StoredActivity extends ActivitySummary {
 const STORAGE_KEY = 'wadlgaudi_activities';
 
 /**
- * Saves a new activity to localStorage.
+ * Saves a new activity to localStorage and its blob to IndexedDB.
  */
-export function saveActivity(summary: ActivitySummary, atpRecordKey?: string, encryptionKey?: string): StoredActivity {
+export async function saveActivity(
+    summary: ActivitySummary, 
+    atpRecordKey?: string, 
+    encryptionKey?: string,
+    blob?: Uint8Array
+): Promise<StoredActivity> {
     const activities = getActivities();
+    const id = crypto.randomUUID();
     const newActivity: StoredActivity = {
         ...summary,
-        id: crypto.randomUUID(),
+        id,
         createdAt: new Date().toISOString(),
         atpRecordKey,
         encryptionKey
     };
+    
+    // Save blob if provided
+    if (blob) {
+        await blobStorage.putBlob(id, blob);
+    }
     
     activities.unshift(newActivity); // Newest first
     localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
@@ -42,17 +54,21 @@ export function getActivities(): StoredActivity[] {
 }
 
 /**
- * Deletes an activity from localStorage by ID.
+ * Deletes an activity from localStorage and its blob from IndexedDB.
  */
-export function deleteActivity(id: string): void {
+export async function deleteActivity(id: string): Promise<void> {
     const activities = getActivities();
     const filtered = activities.filter(a => a.id !== id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    
+    // Also clean up the blob
+    await blobStorage.removeBlob(id);
 }
 
 /**
- * Clears all activities from localStorage.
+ * Clears all activities from localStorage and all blobs from IndexedDB.
  */
-export function clearActivities(): void {
+export async function clearActivities(): Promise<void> {
     localStorage.removeItem(STORAGE_KEY);
+    await blobStorage.removeAllBlobs();
 }

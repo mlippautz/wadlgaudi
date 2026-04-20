@@ -40,8 +40,8 @@ export class WApp extends HTMLElement {
 
         this.addEventListener('action-clear', () => {
             if (confirm('Clear all local activities? This will NOT delete them from Bluesky.')) {
-                import('../lib/storage').then(m => {
-                    m.clearActivities();
+                import('../lib/storage').then(async m => {
+                    await m.clearActivities();
                     // Force refresh current view if it's the feed
                     if (this.currentView === 'feed') this.handleRoute();
                 });

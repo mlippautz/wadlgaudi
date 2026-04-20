@@ -160,12 +160,62 @@ export class WActivityDetail extends HTMLElement {
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Data Points</span>
-                            <span class="detail-value">Encrypted Blob</span>
+                            <span class="detail-value" id="blob-status">Checking local storage...</span>
                         </div>
+                    </div>
+                    <div id="blob-actions" style="margin-top: 1.5rem; display: none;">
+                        <button id="download-btn" class="btn-icon" style="width: 100%; justify-content: center; background: rgba(16, 185, 129, 0.1); border-color: var(--secondary-color); color: var(--secondary-color);">
+                            Download Decrypted TCX
+                        </button>
                     </div>
                 </div>
             </div>
         `;
+
+        this.checkBlob(activity);
+    }
+
+    async checkBlob(activity: any) {
+        const { getBlob } = await import('../lib/blob-storage');
+        const blob = await getBlob(activity.id);
+        const statusEl = this.querySelector('#blob-status');
+        const actionsEl = this.querySelector('#blob-actions') as HTMLElement;
+
+        if (blob) {
+            if (statusEl) statusEl.innerHTML = '<span style="color: var(--secondary-color)">✅ Available locally</span>';
+            if (actionsEl) actionsEl.style.display = 'block';
+            
+            this.querySelector('#download-btn')?.addEventListener('click', () => this.downloadDecrypted(activity, blob));
+        } else {
+            if (statusEl) (statusEl as HTMLElement).innerText = 'Not available locally';
+        }
+    }
+
+    async downloadDecrypted(activity: any, encryptedBlob: Uint8Array) {
+        if (!activity.encryptionKey) {
+            alert('No encryption key found for this activity.');
+            return;
+        }
+
+        try {
+            const { importKeyFromBase64, decryptSymmetric } = await import('../lib/crypto');
+            const key = await importKeyFromBase64(activity.encryptionKey);
+            const decryptedBytes = await decryptSymmetric(key, encryptedBlob);
+            const decryptedString = new TextDecoder().decode(decryptedBytes);
+
+            const blob = new Blob([decryptedString], { type: 'application/vnd.garmin.tcx+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `activity-${activity.id.substring(0, 8)}.tcx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Decryption failed', err);
+            alert('Failed to decrypt activity: ' + (err as Error).message);
+        }
     }
 
     calculatePace(duration: number, distance: number): string {

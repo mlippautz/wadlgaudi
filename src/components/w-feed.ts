@@ -39,7 +39,7 @@ export class WFeed extends HTMLElement {
                     }
                 }
 
-                deleteActivity(id);
+                await deleteActivity(id);
                 const updated = getActivities();
                 this.render(updated);
             }
