@@ -243,11 +243,6 @@ export class WUpload extends HTMLElement {
                     gap: 1rem;
                     justify-content: flex-end;
                 }
-                #cancel-btn {
-                    background: transparent;
-                    border: 1px solid var(--surface-border);
-                }
-                #cancel-btn:hover { background: rgba(255,255,255,0.05); }
             </style>
             <div class="glass-panel upload-container" style="padding: 2rem">
                 <h3>Upload Activity</h3>

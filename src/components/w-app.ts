@@ -137,33 +137,9 @@ export class WApp extends HTMLElement {
                     gap: 0.5rem;
                     align-items: center;
                 }
-                .btn-icon {
-                    padding: 0.5rem 0.75rem;
-                    font-size: 0.85rem;
-                    background: rgba(255, 255, 255, 0.05);
-                    border: 1px solid var(--surface-border);
-                    border-radius: var(--border-radius-sm);
-                    color: var(--text-main);
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                }
-                .btn-icon:hover {
-                    background: rgba(255, 255, 255, 0.1);
-                    border-color: var(--primary-color);
-                }
                 .btn-primary {
                     background: var(--primary-color);
-                    border: none;
                     color: #000;
-                    padding: 0.5rem 1rem;
-                    font-weight: 700;
-                }
-                .btn-danger {
-                    color: #ef4444;
-                }
-                .btn-danger:hover {
-                    background: rgba(239, 68, 68, 0.1);
-                    border-color: rgba(239, 68, 68, 0.2);
                 }
 
                 @media (max-width: 600px) {
@@ -171,6 +147,26 @@ export class WApp extends HTMLElement {
                     .logo { font-size: 1.25rem; }
                     .btn-text { display: none; } /* Hide text on small screens */
                     .btn-icon { padding: 0.5rem; }
+                }
+
+                .app-footer {
+                    margin-top: 4rem;
+                    padding: 3rem 1rem;
+                    border-top: 1px solid var(--surface-border);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 1rem;
+                }
+                .footer-actions {
+                    display: flex;
+                    gap: 1rem;
+                }
+                .btn-tertiary {
+                    /* Inherits base button styles */
+                }
+                .btn-tertiary:hover {
+                    /* Inherits shared hover effects */
                 }
             </style>
             ${this.currentView !== 'login' ? `
@@ -185,12 +181,6 @@ export class WApp extends HTMLElement {
                             </span>
                         </div>
                         <div class="actions">
-                            <button id="debug-btn" class="btn-icon">
-                                <span class="btn-text">Debug</span>
-                            </button>
-                            <button id="clear-btn" class="btn-icon btn-danger">
-                                <span class="btn-text">Clear</span>
-                            </button>
                             <button id="add-btn" class="btn-primary">
                                 <span>+</span> <span class="btn-text">New</span>
                             </button>
@@ -211,6 +201,14 @@ export class WApp extends HTMLElement {
                             : '<w-feed id="feed-view"></w-feed>'
                 }
             </main>
+            ${this.currentView !== 'login' ? `
+                <footer class="app-footer">
+                    <div class="footer-actions">
+                        <button id="debug-btn" class="btn-tertiary">List issues on Bluesky</button>
+                        <button id="clear-btn" class="btn-tertiary">Clear local storage</button>
+                    </div>
+                </footer>
+            ` : ''}
         `;
 
         if (this.currentView === 'login') {

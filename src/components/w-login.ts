@@ -61,20 +61,10 @@ export class WLogin extends HTMLElement {
                 }
                 .auth-btn { 
                     width: 100%; 
-                    padding: 1rem;
-                    font-size: 1rem;
-                    border-radius: var(--border-radius-md);
+                    margin-top: 1rem;
                 }
                 .skip-btn {
-                    margin-top: 1rem;
-                    background: transparent;
-                    border: 1px solid var(--surface-border);
-                    color: var(--text-muted);
-                    font-size: 0.9rem;
-                }
-                .skip-btn:hover {
-                    color: var(--text-main);
-                    border-color: var(--text-main);
+                    margin-top: 0.5rem;
                 }
             </style>
             <div class="glass-panel login-container">

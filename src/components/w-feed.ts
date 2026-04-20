@@ -178,33 +178,6 @@ export class WFeed extends HTMLElement {
                 .feed-header h2 {
                     font-weight: 600;
                 }
-                #upload-btn {
-                    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-                    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-                    padding: 0.75rem 1.5rem;
-                    border-radius: var(--border-radius-md);
-                    font-weight: 600;
-                    cursor: pointer;
-                }
-                #upload-btn:hover {
-                    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
-                    opacity: 0.9;
-                }
-                #clear-btn {
-                    background: transparent;
-                    border: 1px solid var(--surface-border);
-                    padding: 0.75rem 1rem;
-                    border-radius: var(--border-radius-md);
-                    font-size: 0.8rem;
-                    color: var(--text-muted);
-                    cursor: pointer;
-                    margin-right: 0.5rem;
-                }
-                #clear-btn:hover {
-                    background: rgba(239, 68, 68, 0.1);
-                    color: #ef4444;
-                    border-color: rgba(239, 68, 68, 0.2);
-                }
             </style>
             <div class="feed-header">
                 <h2>Activity Feed</h2>

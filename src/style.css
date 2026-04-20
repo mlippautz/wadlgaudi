@@ -56,29 +56,43 @@ button {
   font-family: var(--font-family);
   background: var(--primary-color);
   color: #000;
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--border-radius-sm);
-  padding: 0.75rem 1.5rem;
+  padding: 0.6rem 1.25rem;
   font-weight: 700;
   text-transform: uppercase;
+  font-size: 0.75rem; /* Exactly the same for all buttons */
   letter-spacing: 0.05em;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
 }
 
 button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 255, 255, 0.1);
+}
+
+/* Primary Button Hover */
+button:not(.btn-icon):not(.skip-btn):not(.btn-danger):not(.btn-tertiary):hover {
   background: var(--primary-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
 }
 
-/* Only invert text color for primary-style buttons on hover */
-button:not(.btn-icon):not(.skip-btn):not(.btn-danger):hover {
-  color: #000;
-}
-
-.btn-icon, .skip-btn, .btn-danger {
+/* Secondary/Ghost Button Base */
+.btn-icon, .skip-btn, .btn-danger, .btn-tertiary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--surface-border);
   color: #fff !important;
+}
+
+/* Secondary/Ghost Button Hover */
+.btn-icon:hover, .skip-btn:hover, .btn-danger:hover, .btn-tertiary:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 button:active {
