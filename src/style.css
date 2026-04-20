@@ -11,6 +11,8 @@
   --text-muted: #777777;
   
   --font-family: 'Outfit', 'Inter', sans-serif;
+  --font-size-logo: 1.75rem;
+  --font-size-section: 0.85rem;
   --border-radius-lg: 20px;
   --border-radius-md: 14px;
   --border-radius-sm: 10px;
@@ -126,6 +128,17 @@ input:focus {
   width: 100%;
   margin: 1.5rem 0;
   z-index: 1;
+}
+
+.section-title {
+  font-size: var(--font-size-section);
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: 800;
+  margin-bottom: 2rem;
+  text-align: right;
+  opacity: 0.9;
 }
 
 .leaflet-container {

@@ -120,11 +120,11 @@ export class WApp extends HTMLElement {
                     margin: 0 auto;
                 }
                 .logo {
-                    font-size: 1.5rem;
+                    font-size: var(--font-size-logo);
                     font-weight: 800;
                     color: #ffffff;
                     text-decoration: none;
-                    letter-spacing: -0.02em;
+                    letter-spacing: -0.04em;
                 }
                 .user-handle {
                     font-size: 0.85rem;
@@ -140,6 +140,10 @@ export class WApp extends HTMLElement {
                 .btn-primary {
                     background: var(--primary-color);
                     color: #000;
+                }
+                
+                main {
+                    margin-top: 1rem;
                 }
 
                 @media (max-width: 600px) {

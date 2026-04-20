@@ -169,18 +169,9 @@ export class WFeed extends HTMLElement {
 
         this.innerHTML = `
             <style>
-                .feed-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 2rem;
-                }
-                .feed-header h2 {
-                    font-weight: 600;
-                }
             </style>
-            <div class="feed-header">
-                <h2>Activity Feed</h2>
+            <div class="section-title">
+                Activity Feed
             </div>
             
             <div class="feed-list">
