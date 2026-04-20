@@ -1,6 +1,8 @@
+import polyline from '@mapbox/polyline';
+
 export class WActivityCard extends HTMLElement {
     static get observedAttributes() {
-        return ['sport', 'distance', 'duration', 'date'];
+        return ['sport', 'distance', 'duration', 'date', 'polyline'];
     }
 
     connectedCallback() {
@@ -26,10 +28,9 @@ export class WActivityCard extends HTMLElement {
         const distance = this.getAttribute('distance') || '0';
         const duration = this.getAttribute('duration') || '0';
         const date = this.getAttribute('date') || new Date().toLocaleDateString();
+        const polyline = this.getAttribute('polyline') || '';
 
         const distanceKm = (Number(distance) / 1000).toFixed(2);
-        
-        // Simple duration formatter (seconds to HH:MM:SS)
         const d = Number(duration);
         const h = Math.floor(d / 3600);
         const m = Math.floor(d % 3600 / 60);
@@ -39,36 +40,78 @@ export class WActivityCard extends HTMLElement {
         this.innerHTML = `
             <style>
                 .card {
-                    padding: 1.5rem;
+                    padding: 1.25rem 1.5rem;
                     margin-bottom: 1rem;
-                    transition: all 0.2s ease;
+                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
                     position: relative;
                     border: 1px solid var(--surface-border);
+                    display: flex;
+                    flex-direction: column;
                 }
                 .card:hover {
-                    transform: translateY(-2px);
-                    border-color: rgba(255, 255, 255, 0.4);
-                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                    transform: translateY(-4px);
+                    border-color: rgba(255, 255, 255, 0.3);
+                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
                 }
                 .header {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    margin-bottom: 1rem;
+                    margin-bottom: 0.75rem;
                 }
                 .sport-badge {
-                    background: rgba(255, 255, 255, 0.1);
+                    background: rgba(255, 255, 255, 0.08);
                     color: #ffffff;
-                    padding: 0.25rem 0.75rem;
+                    padding: 0.2rem 0.6rem;
                     border-radius: 4px;
-                    font-size: 0.75rem;
-                    font-weight: 700;
+                    font-size: 0.65rem;
+                    font-weight: 800;
                     text-transform: uppercase;
                     letter-spacing: 0.1em;
                 }
                 .date {
                     color: var(--text-muted);
-                    font-size: 0.8rem;
+                    font-size: 0.75rem;
+                }
+                .main-content {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-end;
+                    gap: 1.5rem;
+                }
+                .stats {
+                    display: flex;
+                    gap: 2rem;
+                }
+                .stat-block .label {
+                    font-size: 0.65rem;
+                    color: var(--text-muted);
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    margin-bottom: 0.25rem;
+                }
+                .stat-block .value {
+                    font-size: 1.75rem;
+                    font-weight: 800;
+                    color: var(--text-main);
+                    line-height: 1;
+                }
+                .stat-block .unit {
+                    font-size: 0.9rem;
+                    font-weight: 400;
+                    color: var(--text-muted);
+                }
+                .mini-map {
+                    width: 120px;
+                    height: 60px;
+                    opacity: 0.7;
+                    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+                }
+                .mini-map polyline {
+                    stroke: #ffffff;
+                    stroke-width: 2.5;
+                    stroke-linecap: round;
+                    stroke-linejoin: round;
                 }
                 .delete-btn {
                     background: transparent;
@@ -79,25 +122,11 @@ export class WActivityCard extends HTMLElement {
                     padding: 0 0.5rem;
                     transition: color 0.2s ease;
                     margin-left: 0.5rem;
+                    opacity: 0.5;
                 }
                 .delete-btn:hover {
                     color: #ef4444;
-                }
-                .stats {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 1rem;
-                    margin-top: 1rem;
-                }
-                .stat-block .label {
-                    font-size: 0.75rem;
-                    color: var(--text-muted);
-                    text-transform: uppercase;
-                }
-                .stat-block .value {
-                    font-size: 1.5rem;
-                    font-weight: 700;
-                    color: var(--text-main);
+                    opacity: 1;
                 }
             </style>
             <a href="#/activity/${this.getAttribute('id')}" style="text-decoration: none; color: inherit; display: block;">
@@ -109,19 +138,64 @@ export class WActivityCard extends HTMLElement {
                             <button class="delete-btn" title="Delete Activity">&times;</button>
                         </div>
                     </div>
-                    <div class="stats">
-                        <div class="stat-block">
-                            <div class="label">Distance</div>
-                            <div class="value">${distanceKm} <span style="font-size:1rem;font-weight:normal">km</span></div>
+                    <div class="main-content">
+                        <div class="stats">
+                            <div class="stat-block">
+                                <div class="label">Distance</div>
+                                <div class="value">${distanceKm}<span class="unit">km</span></div>
+                            </div>
+                            <div class="stat-block">
+                                <div class="label">Time</div>
+                                <div class="value">${durationFmt}</div>
+                            </div>
                         </div>
-                        <div class="stat-block">
-                            <div class="label">Time</div>
-                            <div class="value">${durationFmt}</div>
-                        </div>
+                        ${this.renderMiniMap(polyline)}
                     </div>
                 </div>
             </a>
         `;
+    }
+
+    private renderMiniMap(polylineStr: string) {
+        if (!polylineStr || polylineStr === '""') return '';
+        
+        try {
+            const pts = polyline.decode(polylineStr);
+            if (pts.length < 2) return '';
+
+            const lats = pts.map(p => p[0]);
+            const lngs = pts.map(p => p[1]);
+            const minLat = Math.min(...lats);
+            const maxLat = Math.max(...lats);
+            const minLng = Math.min(...lngs);
+            const maxLng = Math.max(...lngs);
+
+            const width = 120;
+            const height = 60;
+            const padding = 6;
+
+            const scale = (val: number, min: number, max: number, size: number) => {
+                if (max === min) return size / 2;
+                return padding + (val - min) / (max - min) * (size - 2 * padding);
+            };
+
+            const svgPts = pts.map(p => {
+                const x = scale(p[1], minLng, maxLng, width);
+                const y = height - scale(p[0], minLat, maxLat, height);
+                return `${x.toFixed(1)},${y.toFixed(1)}`;
+            }).join(' ');
+
+            return `
+                <div class="mini-map">
+                    <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
+                        <polyline points="${svgPts}" fill="none" />
+                    </svg>
+                </div>
+            `;
+        } catch (e) {
+            console.error('Failed to render mini-map', e);
+            return '';
+        }
     }
 }
 

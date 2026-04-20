@@ -162,6 +162,7 @@ export class WFeed extends HTMLElement {
                     sport="${act.sportType}" 
                     distance="${act.distance}" 
                     duration="${act.duration}" 
+                    polyline="${act.polyline || ''}"
                     date="${new Date(act.createdAt).toLocaleDateString()} ${new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}"
                 ></w-activity-card>
             `).join('')
