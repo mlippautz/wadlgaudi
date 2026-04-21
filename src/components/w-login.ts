@@ -1,4 +1,5 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
+import { sharedStyles } from '../styles/shared-styles';
 import type { AtpClient } from '../lib/atp-client';
 
 export class WLogin extends LitElement {
@@ -8,50 +9,50 @@ export class WLogin extends LitElement {
 
     declare atpClient?: AtpClient;
 
-    createRenderRoot() {
-        return this;
-    }
+    static styles = [
+        sharedStyles,
+        css`
+            .login-container {
+                padding: 3rem 2rem;
+                text-align: center;
+                max-width: 450px;
+                margin: 4rem auto;
+            }
+            .brand-title {
+                font-size: 3rem;
+                font-weight: 800;
+                margin-bottom: 0.5rem;
+                color: #ffffff;
+            }
+            .brand-tagline {
+                color: var(--text-muted);
+                margin-bottom: 2.5rem;
+                font-size: 1.1rem;
+            }
+            .input-group {
+                margin-bottom: 1.5rem;
+                text-align: left;
+            }
+            label {
+                display: block;
+                margin-bottom: 0.75rem;
+                color: var(--text-muted);
+                font-size: 0.85rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            .auth-btn { 
+                width: 100%; 
+                margin-top: 1rem;
+            }
+            .skip-btn {
+                margin-top: 0.5rem;
+            }
+        `
+    ];
 
     render() {
         return html`
-            <style>
-                .login-container {
-                    padding: 3rem 2rem;
-                    text-align: center;
-                    max-width: 450px;
-                    margin: 4rem auto;
-                }
-                .brand-title {
-                    font-size: 3rem;
-                    font-weight: 800;
-                    margin-bottom: 0.5rem;
-                    color: #ffffff;
-                }
-                .brand-tagline {
-                    color: var(--text-muted);
-                    margin-bottom: 2.5rem;
-                    font-size: 1.1rem;
-                }
-                .input-group {
-                    margin-bottom: 1.5rem;
-                    text-align: left;
-                }
-                label {
-                    display: block;
-                    margin-bottom: 0.75rem;
-                    color: var(--text-muted);
-                    font-size: 0.85rem;
-                    text-transform: uppercase;
-                    letter-spacing: 0.05em;
-                }
-                .auth-btn { 
-                    width: 100%; 
-                    margin-top: 1rem;
-                }
-                .skip-btn {
-                    margin-top: 0.5rem;
-                }
-            </style>
             <div class="glass-panel login-container">
                 <h1 class="brand-title">Wadlgaudi</h1>
                 <p class="brand-tagline">Your Decentralized Activity Tracker</p>
@@ -70,7 +71,7 @@ export class WLogin extends LitElement {
 
     async handleLogin(e: Event) {
         e.preventDefault();
-        const handleInput = this.querySelector('#handle') as HTMLInputElement;
+        const handleInput = this.renderRoot.querySelector('#handle') as HTMLInputElement;
         const handle = handleInput.value.trim();
 
         if (handle && this.atpClient) {

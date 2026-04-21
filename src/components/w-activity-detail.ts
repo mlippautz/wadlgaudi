@@ -1,10 +1,12 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css, unsafeCSS } from 'lit';
+import { sharedStyles } from '../styles/shared-styles';
+import leafletStyles from 'leaflet/dist/leaflet.css?inline';
 import { getActivities } from '../lib/storage';
 import { extractCoordinates } from '../lib/activity-parser';
 import { importKeyFromBase64, decryptSymmetric } from '../lib/crypto';
 import { getBlob } from '../lib/blob-storage';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+
 
 export class WActivityDetail extends LitElement {
     static properties = {
@@ -19,9 +21,103 @@ export class WActivityDetail extends LitElement {
         this.activityId = null;
     }
 
-    createRenderRoot() {
-        return this;
-    }
+    static styles = [
+        sharedStyles,
+        css`${unsafeCSS(leafletStyles)}`,
+        css`
+            .detail-container {
+                animation: fadeIn 0.3s ease;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; transform: scale(0.98); }
+                to { opacity: 1; transform: scale(1); }
+            }
+            .back-link {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                color: var(--text-muted);
+                text-decoration: none;
+                font-size: 0.9rem;
+                margin-bottom: 2rem;
+                transition: color 0.2s ease;
+            }
+            .back-link:hover {
+                color: var(--primary-color);
+            }
+            .hero-stats {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 1.5rem;
+                margin: 2rem 0;
+            }
+            .stat-card {
+                padding: 1.5rem;
+                text-align: center;
+                border: 1px solid var(--surface-border);
+            }
+            .stat-card .label {
+                font-size: 0.75rem;
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                margin-bottom: 0.5rem;
+            }
+            .stat-card .value {
+                font-size: 2rem;
+                font-weight: 800;
+                color: var(--text-main);
+            }
+            .stat-card .unit {
+                font-size: 1rem;
+                font-weight: 400;
+                color: var(--text-muted);
+            }
+            .header-section {
+                margin-bottom: 2rem;
+            }
+            .sport-tag {
+                display: inline-block;
+                padding: 0.25rem 0.75rem;
+                background: rgba(255,255,255,0.1);
+                border-radius: 4px;
+                font-weight: 700;
+                text-transform: uppercase;
+                font-size: 0.8rem;
+                margin-bottom: 1rem;
+            }
+            h2 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+            .timestamp { color: var(--text-muted); }
+            
+            #map-status {
+                padding: 1.5rem;
+                text-align: center;
+                color: var(--text-muted);
+                background: rgba(255,255,255,0.05);
+                border-radius: var(--border-radius-lg);
+                margin: 1.5rem 0;
+            }
+
+            .more-details {
+                margin-top: 3rem;
+                padding-top: 2rem;
+                border-top: 1px solid var(--surface-border);
+            }
+            .detail-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1rem;
+            }
+            .detail-item {
+                display: flex;
+                justify-content: space-between;
+                padding: 0.75rem 0;
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+            }
+            .detail-label { color: var(--text-muted); }
+            .detail-value { font-weight: 600; }
+        `
+    ];
 
     updated(changedProperties: Map<string, any>) {
         if (changedProperties.has('activityId')) {
@@ -40,15 +136,15 @@ export class WActivityDetail extends LitElement {
         }
 
         const blob = await getBlob(activity.id);
-        const statusEl = this.querySelector('#blob-status');
-        const actionsEl = this.querySelector('#blob-actions') as HTMLElement;
-        const mapStatusEl = this.querySelector('#map-status') as HTMLElement;
+        const statusEl = this.renderRoot.querySelector('#blob-status');
+        const actionsEl = this.renderRoot.querySelector('#blob-actions') as HTMLElement;
+        const mapStatusEl = this.renderRoot.querySelector('#map-status') as HTMLElement;
 
         if (blob) {
             if (statusEl) statusEl.innerHTML = '<span style="color: var(--secondary-color)">✅ Available locally</span>';
             if (actionsEl) actionsEl.style.display = 'block';
             
-            this.querySelector('#download-btn')?.addEventListener('click', () => this.downloadDecrypted(activity, blob));
+            this.renderRoot.querySelector('#download-btn')?.addEventListener('click', () => this.downloadDecrypted(activity, blob));
 
             // Initialize Map
             this.initMap(activity, blob);
@@ -75,99 +171,6 @@ export class WActivityDetail extends LitElement {
         const maxSpeedKmh = ((activity.maxSpeed || 0) * 3.6).toFixed(1);
 
         return html`
-            <style>
-                .detail-container {
-                    animation: fadeIn 0.3s ease;
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: scale(0.98); }
-                    to { opacity: 1; transform: scale(1); }
-                }
-                .back-link {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    color: var(--text-muted);
-                    text-decoration: none;
-                    font-size: 0.9rem;
-                    margin-bottom: 2rem;
-                    transition: color 0.2s ease;
-                }
-                .back-link:hover {
-                    color: var(--primary-color);
-                }
-                .hero-stats {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                    gap: 1.5rem;
-                    margin: 2rem 0;
-                }
-                .stat-card {
-                    padding: 1.5rem;
-                    text-align: center;
-                    border: 1px solid var(--surface-border);
-                }
-                .stat-card .label {
-                    font-size: 0.75rem;
-                    color: var(--text-muted);
-                    text-transform: uppercase;
-                    letter-spacing: 0.1em;
-                    margin-bottom: 0.5rem;
-                }
-                .stat-card .value {
-                    font-size: 2rem;
-                    font-weight: 800;
-                    color: var(--text-main);
-                }
-                .stat-card .unit {
-                    font-size: 1rem;
-                    font-weight: 400;
-                    color: var(--text-muted);
-                }
-                .header-section {
-                    margin-bottom: 2rem;
-                }
-                .sport-tag {
-                    display: inline-block;
-                    padding: 0.25rem 0.75rem;
-                    background: rgba(255,255,255,0.1);
-                    border-radius: 4px;
-                    font-weight: 700;
-                    text-transform: uppercase;
-                    font-size: 0.8rem;
-                    margin-bottom: 1rem;
-                }
-                h2 { font-size: 2.5rem; margin-bottom: 0.5rem; }
-                .timestamp { color: var(--text-muted); }
-                
-                #map-status {
-                    padding: 1.5rem;
-                    text-align: center;
-                    color: var(--text-muted);
-                    background: rgba(255,255,255,0.05);
-                    border-radius: var(--border-radius-lg);
-                    margin: 1.5rem 0;
-                }
-
-                .more-details {
-                    margin-top: 3rem;
-                    padding-top: 2rem;
-                    border-top: 1px solid var(--surface-border);
-                }
-                .detail-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 1rem;
-                }
-                .detail-item {
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 0.75rem 0;
-                    border-bottom: 1px solid rgba(255,255,255,0.05);
-                }
-                .detail-label { color: var(--text-muted); }
-                .detail-value { font-weight: 600; }
-            </style>
             <div class="detail-container">
                 <a href="#/feed" class="back-link">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -234,12 +237,12 @@ export class WActivityDetail extends LitElement {
             
             const coordinates = extractCoordinates(tcxString);
             if (coordinates.length === 0) {
-                const mapStatusEl = this.querySelector('#map-status') as HTMLElement;
+                const mapStatusEl = this.renderRoot.querySelector('#map-status') as HTMLElement;
                 if (mapStatusEl) mapStatusEl.innerText = 'No GPS coordinates found in track.';
                 return;
             }
 
-            const mapEl = this.querySelector('#map') as HTMLElement;
+            const mapEl = this.renderRoot.querySelector('#map') as HTMLElement;
             if (!mapEl) return;
 
             // Initialize Leaflet
@@ -292,10 +295,10 @@ export class WActivityDetail extends LitElement {
             this.map.fitBounds(track.getBounds(), { padding: [30, 30] });
 
             // Remove status message
-            this.querySelector('#map-status')?.remove();
+            this.renderRoot.querySelector('#map-status')?.remove();
         } catch (err) {
             console.error('Map initialization failed', err);
-            const mapStatusEl = this.querySelector('#map-status') as HTMLElement;
+            const mapStatusEl = this.renderRoot.querySelector('#map-status') as HTMLElement;
             if (mapStatusEl) mapStatusEl.innerText = 'Failed to load map track.';
         }
     }

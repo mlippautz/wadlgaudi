@@ -1,4 +1,5 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
+import { sharedStyles } from '../styles/shared-styles';
 import polyline from '@mapbox/polyline';
 
 export class WActivityCard extends LitElement {
@@ -28,9 +29,100 @@ export class WActivityCard extends LitElement {
         this.id = '';
     }
 
-    createRenderRoot() {
-        return this;
-    }
+    static styles = [
+        sharedStyles,
+        css`
+            .card {
+                padding: 1.25rem 1.5rem;
+                margin-bottom: 1rem;
+                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+                position: relative;
+                border: 1px solid var(--surface-border);
+                display: flex;
+                flex-direction: column;
+            }
+            .card:hover {
+                transform: translateY(-4px);
+                border-color: rgba(255, 255, 255, 0.3);
+                box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+            }
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.75rem;
+            }
+            .sport-badge {
+                background: rgba(255, 255, 255, 0.08);
+                color: #ffffff;
+                padding: 0.2rem 0.6rem;
+                border-radius: 4px;
+                font-size: 0.65rem;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+            }
+            .date {
+                color: var(--text-muted);
+                font-size: 0.75rem;
+            }
+            .main-content {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+                gap: 1.5rem;
+            }
+            .stats {
+                display: flex;
+                gap: 2rem;
+            }
+            .stat-block .label {
+                font-size: 0.65rem;
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin-bottom: 0.25rem;
+            }
+            .stat-block .value {
+                font-size: 1.75rem;
+                font-weight: 800;
+                color: var(--text-main);
+                line-height: 1;
+            }
+            .stat-block .unit {
+                font-size: 0.9rem;
+                font-weight: 400;
+                color: var(--text-muted);
+            }
+            .mini-map {
+                width: 120px;
+                height: 60px;
+                opacity: 0.7;
+                filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+            }
+            .mini-map polyline {
+                stroke: #ffffff;
+                stroke-width: 2.5;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+            }
+            .delete-btn {
+                background: transparent;
+                border: none;
+                color: var(--text-muted);
+                cursor: pointer;
+                font-size: 1.2rem;
+                padding: 0 0.5rem;
+                transition: color 0.2s ease;
+                margin-left: 0.5rem;
+                opacity: 0.5;
+            }
+            .delete-btn:hover {
+                color: #ef4444;
+                opacity: 1;
+            }
+        `
+    ];
 
     render() {
         const distanceKm = (Number(this.distance) / 1000).toFixed(2);
@@ -41,97 +133,6 @@ export class WActivityCard extends LitElement {
         const durationFmt = h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
 
         return html`
-            <style>
-                .card {
-                    padding: 1.25rem 1.5rem;
-                    margin-bottom: 1rem;
-                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-                    position: relative;
-                    border: 1px solid var(--surface-border);
-                    display: flex;
-                    flex-direction: column;
-                }
-                .card:hover {
-                    transform: translateY(-4px);
-                    border-color: rgba(255, 255, 255, 0.3);
-                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-                }
-                .header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 0.75rem;
-                }
-                .sport-badge {
-                    background: rgba(255, 255, 255, 0.08);
-                    color: #ffffff;
-                    padding: 0.2rem 0.6rem;
-                    border-radius: 4px;
-                    font-size: 0.65rem;
-                    font-weight: 800;
-                    text-transform: uppercase;
-                    letter-spacing: 0.1em;
-                }
-                .date {
-                    color: var(--text-muted);
-                    font-size: 0.75rem;
-                }
-                .main-content {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-end;
-                    gap: 1.5rem;
-                }
-                .stats {
-                    display: flex;
-                    gap: 2rem;
-                }
-                .stat-block .label {
-                    font-size: 0.65rem;
-                    color: var(--text-muted);
-                    text-transform: uppercase;
-                    letter-spacing: 0.05em;
-                    margin-bottom: 0.25rem;
-                }
-                .stat-block .value {
-                    font-size: 1.75rem;
-                    font-weight: 800;
-                    color: var(--text-main);
-                    line-height: 1;
-                }
-                .stat-block .unit {
-                    font-size: 0.9rem;
-                    font-weight: 400;
-                    color: var(--text-muted);
-                }
-                .mini-map {
-                    width: 120px;
-                    height: 60px;
-                    opacity: 0.7;
-                    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
-                }
-                .mini-map polyline {
-                    stroke: #ffffff;
-                    stroke-width: 2.5;
-                    stroke-linecap: round;
-                    stroke-linejoin: round;
-                }
-                .delete-btn {
-                    background: transparent;
-                    border: none;
-                    color: var(--text-muted);
-                    cursor: pointer;
-                    font-size: 1.2rem;
-                    padding: 0 0.5rem;
-                    transition: color 0.2s ease;
-                    margin-left: 0.5rem;
-                    opacity: 0.5;
-                }
-                .delete-btn:hover {
-                    color: #ef4444;
-                    opacity: 1;
-                }
-            </style>
             <a href="#/activity/${this.id}" style="text-decoration: none; color: inherit; display: block;">
                 <div class="glass-panel card">
                     <div class="header">

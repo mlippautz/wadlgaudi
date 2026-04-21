@@ -1,4 +1,5 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
+import { sharedStyles } from '../styles/shared-styles';
 import { parseTcx } from '../lib/activity-parser';
 import { generateAESKey, encryptSymmetric, decryptSymmetric, deriveMasterKey, exportKeyToBase64 } from '../lib/crypto';
 import { saveActivity } from '../lib/storage';
@@ -24,55 +25,55 @@ export class WUpload extends LitElement {
         this.file = null;
     }
 
-    createRenderRoot() {
-        return this;
-    }
+    static styles = [
+        sharedStyles,
+        css`
+            .upload-container {
+                animation: fadeIn 0.3s ease;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            h3 { margin-bottom: 1rem; color: var(--primary-hover); }
+            
+            .dropzone {
+                border: 2px dashed var(--surface-border);
+                border-radius: var(--border-radius-md);
+                padding: 3rem 2rem;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                margin-bottom: 2rem;
+            }
+            .dropzone p { color: var(--text-muted); }
+            
+            .section {
+                margin-bottom: 2rem;
+            }
+            
+            .actions {
+                display: flex;
+                gap: 1rem;
+                justify-content: flex-end;
+            }
+            .friend-item {
+                padding: 0.75rem;
+                margin-bottom: 0.5rem;
+                cursor: pointer;
+                display: flex;
+                justify-content: space-between;
+                border: 1px solid var(--surface-border);
+                border-radius: var(--border-radius-sm);
+            }
+            .friend-item.selected {
+                border-color: var(--primary-color);
+            }
+        `
+    ];
 
     render() {
         return html`
-            <style>
-                .upload-container {
-                    animation: fadeIn 0.3s ease;
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                h3 { margin-bottom: 1rem; color: var(--primary-hover); }
-                
-                .dropzone {
-                    border: 2px dashed var(--surface-border);
-                    border-radius: var(--border-radius-md);
-                    padding: 3rem 2rem;
-                    text-align: center;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    margin-bottom: 2rem;
-                }
-                .dropzone p { color: var(--text-muted); }
-                
-                .section {
-                    margin-bottom: 2rem;
-                }
-                
-                .actions {
-                    display: flex;
-                    gap: 1rem;
-                    justify-content: flex-end;
-                }
-                .friend-item {
-                    padding: 0.75rem;
-                    margin-bottom: 0.5rem;
-                    cursor: pointer;
-                    display: flex;
-                    justify-content: space-between;
-                    border: 1px solid var(--surface-border);
-                    border-radius: var(--border-radius-sm);
-                }
-                .friend-item.selected {
-                    border-color: var(--primary-color);
-                }
-            </style>
             <div class="glass-panel upload-container" style="padding: 2rem">
                 <h3>Upload Activity</h3>
                 
@@ -113,18 +114,18 @@ export class WUpload extends LitElement {
     }
 
     onDropzoneClick() {
-        (this.querySelector('#file-input') as HTMLInputElement)?.click();
+        (this.renderRoot.querySelector('#file-input') as HTMLInputElement)?.click();
     }
 
     onDragOver(e: DragEvent) {
         e.preventDefault();
-        const dropzone = this.querySelector('.dropzone') as HTMLElement;
+        const dropzone = this.renderRoot.querySelector('.dropzone') as HTMLElement;
         dropzone.style.borderColor = 'var(--primary-hover)';
         dropzone.style.background = 'rgba(139, 92, 246, 0.1)';
     }
 
     onDragLeave() {
-        const dropzone = this.querySelector('.dropzone') as HTMLElement;
+        const dropzone = this.renderRoot.querySelector('.dropzone') as HTMLElement;
         dropzone.style.borderColor = this.file ? 'var(--secondary-color)' : 'var(--surface-border)';
         dropzone.style.background = 'transparent';
     }
@@ -162,8 +163,8 @@ export class WUpload extends LitElement {
             return;
         }
         
-        const btn = this.querySelector('#submit-btn') as HTMLButtonElement;
-        const statusMsg = this.querySelector('#status-msg') as HTMLElement;
+        const btn = this.renderRoot.querySelector('#submit-btn') as HTMLButtonElement;
+        const statusMsg = this.renderRoot.querySelector('#status-msg') as HTMLElement;
 
         btn.innerText = 'Processing...';
         btn.disabled = true;

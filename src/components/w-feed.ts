@@ -1,4 +1,5 @@
 import { LitElement, html } from 'lit';
+import { sharedStyles } from '../styles/shared-styles';
 import type { AtpClient } from '../lib/atp-client';
 import { getActivities, deleteActivity, type StoredActivity } from '../lib/storage';
 import { deriveMasterKey, decryptSymmetric } from '../lib/crypto';
@@ -27,9 +28,7 @@ export class WFeed extends LitElement {
         return this._atpClient;
     }
 
-    createRenderRoot() {
-        return this;
-    }
+    static styles = [sharedStyles];
 
     constructor() {
         super();

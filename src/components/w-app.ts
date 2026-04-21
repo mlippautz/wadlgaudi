@@ -1,4 +1,5 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, css } from 'lit';
+import { sharedStyles } from '../styles/shared-styles';
 import { AtpClient } from '../lib/atp-client';
 import { clearActivities } from '../lib/storage';
 import './w-login';
@@ -22,9 +23,75 @@ export class WApp extends LitElement {
         this.currentActivityId = null;
     }
 
-    createRenderRoot() {
-        return this;
-    }
+    static styles = [
+        sharedStyles,
+        css`
+            .app-header {
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                background: rgba(0, 0, 0, 0.8);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border-bottom: 1px solid var(--surface-border);
+                padding: 1rem 1.5rem;
+            }
+            .header-content {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                max-width: 1000px;
+                margin: 0 auto;
+            }
+            .logo {
+                font-size: var(--font-size-logo);
+                font-weight: 800;
+                color: #ffffff;
+                text-decoration: none;
+                letter-spacing: -0.04em;
+            }
+            .user-handle {
+                font-size: 0.85rem;
+                color: var(--text-muted);
+                font-weight: 500;
+                letter-spacing: 0.02em;
+            }
+            .actions {
+                display: flex;
+                gap: 0.5rem;
+                align-items: center;
+            }
+            .btn-primary {
+                background: var(--primary-color);
+                color: #000;
+            }
+            
+            main {
+                margin-top: 1rem;
+            }
+
+            @media (max-width: 600px) {
+                .app-header { padding: 0.75rem 1rem; }
+                .logo { font-size: 1.25rem; }
+                .btn-text { display: none; } /* Hide text on small screens */
+                .btn-icon { padding: 0.5rem; }
+            }
+
+            .app-footer {
+                margin-top: 4rem;
+                padding: 3rem 1rem;
+                border-top: 1px solid var(--surface-border);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+            .footer-actions {
+                display: flex;
+                gap: 1rem;
+            }
+        `
+    ];
 
     async connectedCallback() {
         super.connectedCallback();
@@ -101,72 +168,6 @@ export class WApp extends LitElement {
 
     render() {
         return html`
-            <style>
-                .app-header {
-                    position: sticky;
-                    top: 0;
-                    z-index: 100;
-                    background: rgba(0, 0, 0, 0.8);
-                    backdrop-filter: blur(20px);
-                    -webkit-backdrop-filter: blur(20px);
-                    border-bottom: 1px solid var(--surface-border);
-                    padding: 1rem 1.5rem;
-                }
-                .header-content {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    max-width: 1000px;
-                    margin: 0 auto;
-                }
-                .logo {
-                    font-size: var(--font-size-logo);
-                    font-weight: 800;
-                    color: #ffffff;
-                    text-decoration: none;
-                    letter-spacing: -0.04em;
-                }
-                .user-handle {
-                    font-size: 0.85rem;
-                    color: var(--text-muted);
-                    font-weight: 500;
-                    letter-spacing: 0.02em;
-                }
-                .actions {
-                    display: flex;
-                    gap: 0.5rem;
-                    align-items: center;
-                }
-                .btn-primary {
-                    background: var(--primary-color);
-                    color: #000;
-                }
-                
-                main {
-                    margin-top: 1rem;
-                }
-
-                @media (max-width: 600px) {
-                    .app-header { padding: 0.75rem 1rem; }
-                    .logo { font-size: 1.25rem; }
-                    .btn-text { display: none; } /* Hide text on small screens */
-                    .btn-icon { padding: 0.5rem; }
-                }
-
-                .app-footer {
-                    margin-top: 4rem;
-                    padding: 3rem 1rem;
-                    border-top: 1px solid var(--surface-border);
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 1rem;
-                }
-                .footer-actions {
-                    display: flex;
-                    gap: 1rem;
-                }
-            </style>
             ${this.currentView !== 'login' ? html`
                 <header class="app-header">
                     <div class="header-content">
