@@ -5,10 +5,11 @@ export interface StoredActivity extends ActivitySummary {
     id: string;
     createdAt: string;
     atpRecordKey?: string;
-    encryptionKey?: string; // Base64 encoded symmetric key
+    encryptedActivityKey?: string; // Base64 encoded activity key encrypted with master key
 }
 
 const STORAGE_KEY = 'wadlgaudi_activities';
+const PASSPHRASE_KEY = 'wadlgaudi_passphrase';
 
 /**
  * Saves a new activity to localStorage and its blob to IndexedDB.
@@ -16,7 +17,7 @@ const STORAGE_KEY = 'wadlgaudi_activities';
 export async function saveActivity(
     summary: ActivitySummary, 
     atpRecordKey?: string, 
-    encryptionKey?: string,
+    encryptedActivityKey?: string,
     blob?: Uint8Array
 ): Promise<StoredActivity> {
     const activities = getActivities();
@@ -26,7 +27,7 @@ export async function saveActivity(
         id,
         createdAt: new Date().toISOString(),
         atpRecordKey,
-        encryptionKey
+        encryptedActivityKey
     };
     
     // Save blob if provided
@@ -71,4 +72,18 @@ export async function deleteActivity(id: string): Promise<void> {
 export async function clearActivities(): Promise<void> {
     localStorage.removeItem(STORAGE_KEY);
     await blobStorage.removeAllBlobs();
+}
+
+/**
+ * Retrieves the passphrase for the synchronous key from localStorage.
+ */
+export function getPassphrase(): string | null {
+    return localStorage.getItem(PASSPHRASE_KEY);
+}
+
+/**
+ * Saves the passphrase for the synchronous key to localStorage.
+ */
+export function setPassphrase(passphrase: string): void {
+    localStorage.setItem(PASSPHRASE_KEY, passphrase);
 }

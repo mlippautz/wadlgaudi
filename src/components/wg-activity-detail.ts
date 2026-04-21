@@ -1,9 +1,9 @@
 import { LitElement, html, css, unsafeCSS } from 'lit';
 import { sharedStyles } from '../styles/shared-styles';
 import leafletStyles from 'leaflet/dist/leaflet.css?inline';
-import { getActivities } from '../lib/storage';
+import { getActivities, getPassphrase } from '../lib/storage';
 import { extractCoordinates, parseTcx } from '../lib/activity-parser';
-import { importKeyFromBase64, decryptSymmetric } from '../lib/crypto';
+import { decryptSymmetric, deriveMasterKey } from '../lib/crypto';
 import { getBlob } from '../lib/blob-storage';
 import L from 'leaflet';
 
@@ -233,9 +233,28 @@ export class WGActivityDetail extends LitElement {
         `;
     }
 
+    private async getActivityKey(activity: any): Promise<CryptoKey> {
+        const passphrase = getPassphrase();
+        if (!passphrase) {
+            throw new Error("Passphrase not found in settings.");
+        }
+        const masterKey = await deriveMasterKey(passphrase);
+        
+        const encryptedActivityKeyBytes = Uint8Array.from(atob(activity.encryptedActivityKey), c => c.charCodeAt(0));
+        const activityKeyBytes = await decryptSymmetric(masterKey, encryptedActivityKeyBytes);
+        
+        return crypto.subtle.importKey(
+            'raw',
+            activityKeyBytes as BufferSource,
+            { name: 'AES-GCM' },
+            true,
+            ['encrypt', 'decrypt']
+        );
+    }
+
     async initMap(activity: any, encryptedBlob: Uint8Array) {
         try {
-            const key = await importKeyFromBase64(activity.encryptionKey);
+            const key = await this.getActivityKey(activity);
             const decryptedBytes = await decryptSymmetric(key, encryptedBlob);
             const tcxString = new TextDecoder().decode(decryptedBytes);
             
@@ -313,13 +332,13 @@ export class WGActivityDetail extends LitElement {
     }
 
     async downloadDecrypted(activity: any, encryptedBlob: Uint8Array) {
-        if (!activity.encryptionKey) {
+        if (!activity.encryptedActivityKey) {
             alert('No encryption key found for this activity.');
             return;
         }
 
         try {
-            const key = await importKeyFromBase64(activity.encryptionKey);
+            const key = await this.getActivityKey(activity);
             const decryptedBytes = await decryptSymmetric(key, encryptedBlob);
             const decryptedString = new TextDecoder().decode(decryptedBytes);
 

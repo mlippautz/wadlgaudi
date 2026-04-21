@@ -1,27 +1,21 @@
 import { LitElement, html, css } from 'lit';
 import { sharedStyles } from '../styles/shared-styles';
 import { parseTcx } from '../lib/activity-parser';
-import { generateAESKey, encryptSymmetric, decryptSymmetric, exportKeyToBase64 } from '../lib/crypto';
-import { saveActivity } from '../lib/storage';
+import { generateAESKey, encryptSymmetric, decryptSymmetric, deriveMasterKey } from '../lib/crypto';
+import { saveActivity, getPassphrase } from '../lib/storage';
 import type { AtpClient } from '../lib/atp-client';
 
 export class WGUpload extends LitElement {
     static properties = {
         atpClient: { type: Object },
-        friendsList: { type: Array },
         file: { type: Object },
-        selectedFriends: { type: Object },
     };
 
     declare atpClient?: AtpClient;
-    declare friendsList: { did: string, handle: string }[];
-    private declare selectedFriends: Set<string>;
     private declare file: File | null;
 
     constructor() {
         super();
-        this.friendsList = [];
-        this.selectedFriends = new Set();
         this.file = null;
     }
 
@@ -90,19 +84,7 @@ export class WGUpload extends LitElement {
                 </div>
                 <input type="file" id="file-input" accept=".tcx" style="display:none" @change="${this.onFileChange}" />
 
-                <div class="section">
-                    <h4>Share with Friends (E2E Encrypted)</h4>
-                    <p style="font-size:0.85rem; color: var(--text-muted); margin-bottom:1rem;">Select who gets the decryption key.</p>
-                    <div class="friends-list">
-                        ${this.friendsList.map(friend => html`
-                            <div class="friend-item glass-panel ${this.selectedFriends.has(friend.did) ? 'selected' : ''}" 
-                                 @click="${() => this.toggleFriend(friend.did)}">
-                                <span>@${friend.handle}</span> 
-                                <span class="check">${this.selectedFriends.has(friend.did) ? '✅' : ''}</span>
-                            </div>
-                        `)}
-                    </div>
-                </div>
+
 
                 <div class="actions">
                     <button id="cancel-btn" @click="${() => window.location.hash = '#/feed'}">Cancel</button>
@@ -146,16 +128,7 @@ export class WGUpload extends LitElement {
         }
     }
 
-    toggleFriend(did: string) {
-        const newSet = new Set(this.selectedFriends);
-        if (newSet.has(did)) {
-            newSet.delete(did);
-        } else {
-            newSet.add(did);
-        }
-        this.selectedFriends = newSet;
-        this.requestUpdate();
-    }
+
 
     async handleSubmit() {
         if (!this.file) {
@@ -196,6 +169,19 @@ export class WGUpload extends LitElement {
             
             statusMsg.innerHTML += '<span style="color: var(--secondary-color)">✅ Local encryption & decryption verified successfully!</span><br>';
             
+            // Derive master key and encrypt activity key
+            const passphrase = getPassphrase();
+            if (!passphrase) {
+                throw new Error("Passphrase not found in settings. Please set it first.");
+            }
+            statusMsg.innerHTML += 'Deriving master key...<br>';
+            const masterKey = await deriveMasterKey(passphrase);
+            
+            statusMsg.innerHTML += 'Encrypting activity key with master key...<br>';
+            const rawActivityKey = await crypto.subtle.exportKey('raw', key);
+            const encryptedActivityKeyBytes = await encryptSymmetric(masterKey, new Uint8Array(rawActivityKey));
+            const encryptedActivityKeyBase64 = btoa(String.fromCharCode(...encryptedActivityKeyBytes));
+
             let atpRecordKey: string | undefined = undefined;
 
             // If we have an ATP Client and are authenticated, upload to the AT Protocol
@@ -209,7 +195,7 @@ export class WGUpload extends LitElement {
                     const rkey = Date.now().toString(32); // Simple unique rkey
                     await this.atpClient.publishActivityRecord(rkey, {
                         activityBlob: blob,
-                        accessList: {}, // Empty map for now
+                        encryptedActivityKey: encryptedActivityKeyBase64,
                         sportType: summary.sportType,
                         distance: Math.round(summary.distance),
                         duration: Math.round(summary.duration),
@@ -224,17 +210,15 @@ export class WGUpload extends LitElement {
                 }
             }
 
-            // Export key to store locally
-            const keyBase64 = await exportKeyToBase64(key);
-
             // Save to local storage (including the blob)
-            await saveActivity(summary, atpRecordKey, keyBase64, encryptedPackage);
+            // We store the encrypted activity key instead of the raw one
+            await saveActivity(summary, atpRecordKey, encryptedActivityKeyBase64, encryptedPackage);
             statusMsg.innerHTML += 'Activity saved to local storage (including full blob).<br>';
 
             btn.innerText = 'Success!';
             
             setTimeout(() => {
-                alert(`Successfully verified crypto workflow! Shared with ${this.selectedFriends.size} friends (Simulated).`);
+                alert(`Successfully verified crypto workflow!`);
                 window.location.hash = '#/feed';
             }, 3000);
             

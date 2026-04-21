@@ -35,9 +35,6 @@ export interface WadlgaudiActivity {
     // AT Protocol Blob reference for the raw encrypted .tcx
     activityBlob: any; 
     
-    // Map of DID -> encrypted symmetric key
-    accessList: Record<string, string>;
-    
-    // Optional fallback Blob reference if accessList exceeds 8KB
-    accessBlobFallback?: any;
+    // Base64 encoded activity key encrypted with master key
+    encryptedActivityKey: string;
 }

@@ -6,6 +6,7 @@ import './wg-login';
 import './wg-feed';
 import './wg-upload';
 import './wg-activity-detail';
+import './wg-settings';
 
 export class WGApp extends LitElement {
     static properties = {
@@ -14,7 +15,7 @@ export class WGApp extends LitElement {
     };
 
     private atpClient = new AtpClient();
-    declare currentView: 'login' | 'feed' | 'upload' | 'activity-detail';
+    declare currentView: 'login' | 'feed' | 'upload' | 'activity-detail' | 'settings';
     declare currentActivityId: string | null;
 
     constructor() {
@@ -157,6 +158,8 @@ export class WGApp extends LitElement {
             this.currentView = 'feed';
         } else if (hash === '#/upload') {
             this.currentView = 'upload';
+        } else if (hash === '#/settings') {
+            this.currentView = 'settings';
         } else if (hash.startsWith('#/activity/')) {
             this.currentView = 'activity-detail';
             this.currentActivityId = hash.replace('#/activity/', '');
@@ -180,6 +183,9 @@ export class WGApp extends LitElement {
                             </span>
                         </div>
                         <div class="actions">
+                            <button id="settings-btn" class="btn-icon" @click="${() => window.location.hash = '#/settings'}">
+                                <span class="btn-text">Settings</span>
+                            </button>
                             <button id="add-btn" class="btn-primary" @click="${() => window.location.hash = '#/upload'}">
                                 <span>+</span> <span class="btn-text">New</span>
                             </button>
@@ -200,7 +206,9 @@ export class WGApp extends LitElement {
                         ]}"></wg-upload>`
                         : this.currentView === 'activity-detail'
                             ? html`<wg-activity-detail activity-id="${this.currentActivityId}"></wg-activity-detail>`
-                            : html`<wg-feed id="feed-view" .atpClient="${this.atpClient}"></wg-feed>`
+                            : this.currentView === 'settings'
+                                ? html`<wg-settings></wg-settings>`
+                                : html`<wg-feed id="feed-view" .atpClient="${this.atpClient}"></wg-feed>`
                 }
             </main>
             ${this.currentView !== 'login' ? html`

@@ -74,7 +74,7 @@ export class WGFeed extends LitElement {
                 for (const r of remoteRecords) {
                     const val = r.value as any;
                     let polyline = val.polyline || '';
-                    let encryptionKey = undefined;
+                    let encryptedActivityKey = val.encryptedActivityKey;
 
                     remoteActivities.push({
                         id: r.uri.split('/').pop() || r.cid,
@@ -83,7 +83,7 @@ export class WGFeed extends LitElement {
                         distance: val.distance || 0,
                         duration: val.duration || 0,
                         polyline: polyline,
-                        encryptionKey: encryptionKey,
+                        encryptedActivityKey: encryptedActivityKey,
                         createdAt: val.createdAt || new Date().toISOString()
                     });
                 }
@@ -110,8 +110,8 @@ export class WGFeed extends LitElement {
                     const exists = merged.find(local => local.atpRecordKey === remote.atpRecordKey);
                     if (!exists) {
                         merged.push(remote);
-                    } else if (remote.encryptionKey && !exists.encryptionKey) {
-                        exists.encryptionKey = remote.encryptionKey;
+                    } else if (remote.encryptedActivityKey && !exists.encryptedActivityKey) {
+                        exists.encryptedActivityKey = remote.encryptedActivityKey;
                         exists.polyline = remote.polyline;
                     }
                 });

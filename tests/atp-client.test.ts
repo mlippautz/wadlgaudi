@@ -58,7 +58,7 @@ describe('AtpClient Data Layer', () => {
         const response = await client.publishActivityRecord('random-rkey', {
             createdAt: new Date().toISOString(),
             activityBlob: { $type: 'blob' },
-            accessList: { 'did:plc:friend': 'encryptedKey' }
+            encryptedActivityKey: 'encryptedKeyHere'
         });
         expect((response as any).data.uri).toBe('at://test');
     });
