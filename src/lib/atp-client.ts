@@ -9,6 +9,12 @@ let url = typeof window !== 'undefined' ? window.location.origin + '/' : 'http:/
 if (url.includes('http://localhost')) {
     url = url.replace('http://localhost', 'http://127.0.0.1');
 }
+
+// Ensure the local URL includes the base path if we are on local dev
+if (isLocal && !url.includes('/wadlgaudi/')) {
+    url = url.endsWith('/') ? url + 'wadlgaudi/' : url + '/wadlgaudi/';
+}
+
 const encUrl = encodeURIComponent(url);
 
 const clientMetadataUrl = 'https://mlippautz.github.io/wadlgaudi/client-metadata.json';
