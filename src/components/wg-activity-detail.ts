@@ -296,7 +296,7 @@ export class WGActivityDetail extends LitElement {
 
             // Add track polyline
             const track = L.polyline(coordinates, {
-                color: '#ffffff',
+                color: '#00d2ff',
                 weight: 4,
                 opacity: 1,
                 lineJoin: 'round'
