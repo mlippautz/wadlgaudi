@@ -1,16 +1,19 @@
 import { LitElement, html, css } from 'lit';
 import { sharedStyles } from '../styles/shared-styles';
-import { getPassphrase, setPassphrase } from '../lib/storage';
+import { getPassphrase, setPassphrase, clearActivities } from '../lib/storage';
 import { generateRecoveryPhrase } from '../lib/crypto';
+import type { AtpClient } from '../lib/atp-client';
 
 export class WGSettings extends LitElement {
     static properties = {
         passphrase: { type: String },
         showPassphrase: { type: Boolean },
+        atpClient: { type: Object },
     };
 
     declare passphrase: string;
     declare showPassphrase: boolean;
+    declare atpClient?: AtpClient;
 
     constructor() {
         super();
@@ -118,6 +121,15 @@ export class WGSettings extends LitElement {
                         <button class="btn-tertiary" @click="${this.handleGenerate}">Generate New</button>
                     </div>
                 </div>
+
+                <div class="glass-panel" style="padding: 2rem; margin-top: 2rem;">
+                    <h4>Management</h4>
+                    <p class="description" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Debug actions and storage management.</p>
+                    <div class="actions">
+                        <button class="btn-tertiary" @click="${this.handleDebug}">List issues on Bluesky</button>
+                        <button class="btn-tertiary" @click="${this.handleClear}">Clear local storage</button>
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -143,6 +155,33 @@ export class WGSettings extends LitElement {
         this.passphrase = generateRecoveryPhrase();
         this.showPassphrase = true; // Show it so they can copy it
         this.requestUpdate();
+    }
+
+    async handleDebug() {
+        if (this.atpClient?.agent) {
+            try {
+                const records = await this.atpClient.listActivityRecords();
+                console.table(records.map(r => ({
+                    uri: r.uri,
+                    cid: r.cid,
+                    sport: (r.value as any).sportType,
+                    createdAt: (r.value as any).createdAt
+                })));
+                alert(`Found ${records.length} records on Bluesky. See console for details.`);
+            } catch (err) {
+                console.error('Failed to list records', err);
+                alert('Failed to list records: ' + (err as Error).message);
+            }
+        } else {
+            alert('Not logged in or ATP client not available.');
+        }
+    }
+
+    async handleClear() {
+        if (confirm('Clear all local activities? This will NOT delete them from Bluesky.')) {
+            await clearActivities();
+            alert('Local activities cleared.');
+        }
     }
 }
 

@@ -183,11 +183,11 @@ export class WGApp extends LitElement {
                             </span>
                         </div>
                         <div class="actions">
-                            <button id="settings-btn" class="btn-icon" @click="${() => window.location.hash = '#/settings'}">
-                                <span class="btn-text">Settings</span>
-                            </button>
                             <button id="add-btn" class="btn-primary" @click="${() => window.location.hash = '#/upload'}">
                                 <span>+</span> <span class="btn-text">New</span>
+                            </button>
+                            <button id="settings-btn" class="btn-icon" @click="${() => window.location.hash = '#/settings'}">
+                                <span class="btn-text">Settings</span>
                             </button>
                             <button id="logout-btn" class="btn-icon" @click="${() => this.dispatchEvent(new CustomEvent('action-logout'))}">
                                 <span class="btn-text">${this.atpClient.sessionDid ? 'Logout' : 'Sign In'}</span>
@@ -207,18 +207,11 @@ export class WGApp extends LitElement {
                         : this.currentView === 'activity-detail'
                             ? html`<wg-activity-detail activity-id="${this.currentActivityId}"></wg-activity-detail>`
                             : this.currentView === 'settings'
-                                ? html`<wg-settings></wg-settings>`
+                                ? html`<wg-settings .atpClient="${this.atpClient}"></wg-settings>`
                                 : html`<wg-feed id="feed-view" .atpClient="${this.atpClient}"></wg-feed>`
                 }
             </main>
-            ${this.currentView !== 'login' ? html`
-                <footer class="app-footer">
-                    <div class="footer-actions">
-                        <button id="debug-btn" class="btn-tertiary" @click="${() => this.dispatchEvent(new CustomEvent('action-debug'))}">List issues on Bluesky</button>
-                        <button id="clear-btn" class="btn-tertiary" @click="${() => this.dispatchEvent(new CustomEvent('action-clear'))}">Clear local storage</button>
-                    </div>
-                </footer>
-            ` : ''}
+
         `;
     }
 }
