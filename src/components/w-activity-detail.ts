@@ -1,6 +1,8 @@
 import { LitElement, html } from 'lit';
 import { getActivities } from '../lib/storage';
 import { extractCoordinates } from '../lib/activity-parser';
+import { importKeyFromBase64, decryptSymmetric } from '../lib/crypto';
+import { getBlob } from '../lib/blob-storage';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -37,7 +39,6 @@ export class WActivityDetail extends LitElement {
             this.map = null;
         }
 
-        const { getBlob } = await import('../lib/blob-storage');
         const blob = await getBlob(activity.id);
         const statusEl = this.querySelector('#blob-status');
         const actionsEl = this.querySelector('#blob-actions') as HTMLElement;
@@ -227,7 +228,6 @@ export class WActivityDetail extends LitElement {
 
     async initMap(activity: any, encryptedBlob: Uint8Array) {
         try {
-            const { importKeyFromBase64, decryptSymmetric } = await import('../lib/crypto');
             const key = await importKeyFromBase64(activity.encryptionKey);
             const decryptedBytes = await decryptSymmetric(key, encryptedBlob);
             const tcxString = new TextDecoder().decode(decryptedBytes);
@@ -307,7 +307,6 @@ export class WActivityDetail extends LitElement {
         }
 
         try {
-            const { importKeyFromBase64, decryptSymmetric } = await import('../lib/crypto');
             const key = await importKeyFromBase64(activity.encryptionKey);
             const decryptedBytes = await decryptSymmetric(key, encryptedBlob);
             const decryptedString = new TextDecoder().decode(decryptedBytes);

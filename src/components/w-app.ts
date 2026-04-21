@@ -1,5 +1,6 @@
 import { LitElement, html } from 'lit';
 import { AtpClient } from '../lib/atp-client';
+import { clearActivities } from '../lib/storage';
 import './w-login';
 import './w-feed';
 import './w-upload';
@@ -55,12 +56,10 @@ export class WApp extends LitElement {
             window.location.hash = '#/login';
         });
 
-        this.addEventListener('action-clear', () => {
+        this.addEventListener('action-clear', async () => {
             if (confirm('Clear all local activities? This will NOT delete them from Bluesky.')) {
-                import('../lib/storage').then(async m => {
-                    await m.clearActivities();
-                    if (this.currentView === 'feed') this.handleRoute();
-                });
+                await clearActivities();
+                if (this.currentView === 'feed') this.handleRoute();
             }
         });
 

@@ -1,6 +1,6 @@
 import { LitElement, html } from 'lit';
 import { parseTcx } from '../lib/activity-parser';
-import { generateAESKey, encryptSymmetric, decryptSymmetric } from '../lib/crypto';
+import { generateAESKey, encryptSymmetric, decryptSymmetric, deriveMasterKey, exportKeyToBase64 } from '../lib/crypto';
 import { saveActivity } from '../lib/storage';
 import type { AtpClient } from '../lib/atp-client';
 
@@ -113,7 +113,7 @@ export class WUpload extends LitElement {
     }
 
     onDropzoneClick() {
-        this.querySelector('#file-input')?.click();
+        (this.querySelector('#file-input') as HTMLInputElement)?.click();
     }
 
     onDragOver(e: DragEvent) {
@@ -206,7 +206,6 @@ export class WUpload extends LitElement {
 
             let encryptedSummary = "{}";
             if (phrase) {
-                const { deriveMasterKey, exportKeyToBase64 } = await import('../lib/crypto');
                 const masterKey = await deriveMasterKey(phrase);
                 const activityKeyBase64 = await exportKeyToBase64(key);
                 const summaryObj = {
@@ -249,7 +248,6 @@ export class WUpload extends LitElement {
             }
 
             // Export key to store locally
-            const { exportKeyToBase64 } = await import('../lib/crypto');
             const keyBase64 = await exportKeyToBase64(key);
 
             // Save to local storage (including the blob)

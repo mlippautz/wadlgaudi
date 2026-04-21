@@ -1,6 +1,8 @@
 import { LitElement, html } from 'lit';
 import type { AtpClient } from '../lib/atp-client';
 import { getActivities, deleteActivity, type StoredActivity } from '../lib/storage';
+import { deriveMasterKey, decryptSymmetric } from '../lib/crypto';
+import { getBlob, putBlob } from '../lib/blob-storage';
 import './w-activity-card';
 
 export class WFeed extends LitElement {
@@ -82,7 +84,6 @@ export class WFeed extends LitElement {
                 }
 
                 if (phrase) {
-                    const { deriveMasterKey } = await import('../lib/crypto');
                     masterKey = await deriveMasterKey(phrase);
                 }
 
@@ -95,7 +96,6 @@ export class WFeed extends LitElement {
 
                     if (masterKey && val.encryptedSummary && val.encryptedSummary !== "{}") {
                         try {
-                            const { decryptSymmetric } = await import('../lib/crypto');
                             const encryptedBytes = new Uint8Array(atob(val.encryptedSummary).split('').map(c => c.charCodeAt(0)));
                             const decryptedBytes = await decryptSymmetric(masterKey, encryptedBytes);
                             const summaryObj = JSON.parse(new TextDecoder().decode(decryptedBytes));
@@ -119,8 +119,7 @@ export class WFeed extends LitElement {
                         createdAt: val.createdAt || new Date().toISOString()
                     });
                 }
-
-                const { getBlob, putBlob } = await import('../lib/blob-storage');
+                
                 for (const remote of remoteActivities) {
                     const existingBlob = await getBlob(remote.id);
                     if (!existingBlob && this.atpClient) {
