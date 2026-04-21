@@ -1,6 +1,9 @@
-# Wadlgaudi Web
+# Wadlgaudi
 
 A privacy-first, decentralized activity tracker for sports like cycling, running, and skiing. Built using the AT Protocol (Bluesky).
+
+> [!CAUTION]
+> This prototype is very much work in progress.
 
 ## Features
 

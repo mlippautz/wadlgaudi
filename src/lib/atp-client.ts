@@ -2,22 +2,37 @@ import { Agent } from '@atproto/api';
 import { BrowserOAuthClient } from '@atproto/oauth-client-browser';
 import type { WadlgaudiCrypto, WadlgaudiActivity } from './lexicons';
 
-// Configure the OAuth client for local development
+// Configure the OAuth client
+const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
 let url = typeof window !== 'undefined' ? window.location.origin + '/' : 'http://127.0.0.1:5173/';
 if (url.includes('http://localhost')) {
     url = url.replace('http://localhost', 'http://127.0.0.1');
 }
 const encUrl = encodeURIComponent(url);
 
+const clientMetadataUrl = 'https://mlippautz.github.io/wadlgaudi/client-metadata.json';
+
 const oauthClient = new BrowserOAuthClient({
     handleResolver: 'https://bsky.social',
-    clientMetadata: {
+    clientMetadata: isLocal ? {
         // The atproto OAuth client strictly expects `http://localhost` for loopback client IDs
         // For loopback clients without a hosted metadata file, we must include scopes in the client_id
         client_id: `http://localhost?redirect_uri=${encUrl}&scope=${encodeURIComponent('atproto blob:application/octet-stream repo:app.wadlgaudi.activity?action=create repo:app.wadlgaudi.activity?action=delete repo:app.wadlgaudi.activity?action=update atproto:rpc:app.bsky.actor.getProfile')}`, 
         client_name: 'Wadlgaudi Activity Tracker',
         client_uri: url,
         redirect_uris: [url],
+        scope: 'atproto blob:application/octet-stream repo:app.wadlgaudi.activity?action=create repo:app.wadlgaudi.activity?action=delete repo:app.wadlgaudi.activity?action=update atproto:rpc:app.bsky.actor.getProfile',
+        grant_types: ['authorization_code', 'refresh_token'],
+        response_types: ['code'],
+        token_endpoint_auth_method: 'none',
+        application_type: 'web',
+        dpop_bound_access_tokens: true,
+    } : {
+        client_id: clientMetadataUrl,
+        client_name: 'Wadlgaudi Activity Tracker',
+        client_uri: 'https://mlippautz.github.io/wadlgaudi/',
+        redirect_uris: ['https://mlippautz.github.io/wadlgaudi/'],
         scope: 'atproto blob:application/octet-stream repo:app.wadlgaudi.activity?action=create repo:app.wadlgaudi.activity?action=delete repo:app.wadlgaudi.activity?action=update atproto:rpc:app.bsky.actor.getProfile',
         grant_types: ['authorization_code', 'refresh_token'],
         response_types: ['code'],
