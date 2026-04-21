@@ -8,7 +8,7 @@ import { getBlob } from '../lib/blob-storage';
 import L from 'leaflet';
 
 
-export class WActivityDetail extends LitElement {
+export class WGActivityDetail extends LitElement {
     static properties = {
         activityId: { type: String, attribute: 'activity-id' },
     };
@@ -338,4 +338,4 @@ export class WActivityDetail extends LitElement {
     }
 }
 
-customElements.define('w-activity-detail', WActivityDetail);
+customElements.define('wg-activity-detail', WGActivityDetail);

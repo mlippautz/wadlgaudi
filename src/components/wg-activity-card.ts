@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { sharedStyles } from '../styles/shared-styles';
 import polyline from '@mapbox/polyline';
 
-export class WActivityCard extends LitElement {
+export class WGActivityCard extends LitElement {
     static properties = {
         sport: { type: String },
         distance: { type: String },
@@ -215,4 +215,4 @@ export class WActivityCard extends LitElement {
     }
 }
 
-customElements.define('w-activity-card', WActivityCard);
+customElements.define('wg-activity-card', WGActivityCard);

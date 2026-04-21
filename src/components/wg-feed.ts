@@ -4,9 +4,9 @@ import type { AtpClient } from '../lib/atp-client';
 import { getActivities, deleteActivity, type StoredActivity } from '../lib/storage';
 import { deriveMasterKey, decryptSymmetric } from '../lib/crypto';
 import { getBlob, putBlob } from '../lib/blob-storage';
-import './w-activity-card';
+import './wg-activity-card';
 
-export class WFeed extends LitElement {
+export class WGFeed extends LitElement {
     static properties = {
         atpClient: { type: Object },
         activities: { type: Array },
@@ -161,14 +161,14 @@ export class WFeed extends LitElement {
         
         const activitiesHtml = this.activities.length > 0 
             ? this.activities.map(act => html`
-                <w-activity-card 
+                <wg-activity-card 
                     id="${act.id}"
                     sport="${act.sportType}" 
                     distance="${act.distance}" 
                     duration="${act.duration}" 
                     polyline="${act.polyline || ''}"
                     date="${new Date(act.createdAt).toLocaleDateString()} ${new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}"
-                ></w-activity-card>
+                ></wg-activity-card>
             `)
             : html`<p style="text-align: center; color: var(--text-muted); margin-top: 2rem;">No activities yet. Upload one to get started!</p>`;
 
@@ -184,4 +184,4 @@ export class WFeed extends LitElement {
     }
 }
 
-customElements.define('w-feed', WFeed);
+customElements.define('wg-feed', WGFeed);

@@ -5,7 +5,7 @@ import { generateAESKey, encryptSymmetric, decryptSymmetric, deriveMasterKey, ex
 import { saveActivity } from '../lib/storage';
 import type { AtpClient } from '../lib/atp-client';
 
-export class WUpload extends LitElement {
+export class WGUpload extends LitElement {
     static properties = {
         atpClient: { type: Object },
         friendsList: { type: Array },
@@ -271,4 +271,4 @@ export class WUpload extends LitElement {
     }
 }
 
-customElements.define('w-upload', WUpload);
+customElements.define('wg-upload', WGUpload);

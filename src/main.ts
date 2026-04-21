@@ -10,8 +10,8 @@ if (typeof (globalThis as any).Buffer === 'undefined') {
 }
 
 // Import all Web Components to register them with the browser
-import './components/w-login';
-import './components/w-feed';
-import './components/w-activity-card';
-import './components/w-upload';
-import './components/w-app';
+import './components/wg-login';
+import './components/wg-feed';
+import './components/wg-activity-card';
+import './components/wg-upload';
+import './components/wg-app';

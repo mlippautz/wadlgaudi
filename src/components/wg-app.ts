@@ -2,12 +2,12 @@ import { LitElement, html, css } from 'lit';
 import { sharedStyles } from '../styles/shared-styles';
 import { AtpClient } from '../lib/atp-client';
 import { clearActivities } from '../lib/storage';
-import './w-login';
-import './w-feed';
-import './w-upload';
-import './w-activity-detail';
+import './wg-login';
+import './wg-feed';
+import './wg-upload';
+import './wg-activity-detail';
 
-export class WApp extends LitElement {
+export class WGApp extends LitElement {
     static properties = {
         currentView: { type: String },
         currentActivityId: { type: String },
@@ -192,15 +192,15 @@ export class WApp extends LitElement {
             ` : ''}
             <main>
                 ${this.currentView === 'login' 
-                    ? html`<w-login .atpClient="${this.atpClient}"></w-login>` 
+                    ? html`<wg-login .atpClient="${this.atpClient}"></wg-login>` 
                     : this.currentView === 'upload'
-                        ? html`<w-upload id="upload-view" .atpClient="${this.atpClient}" .friendsList="${[
+                        ? html`<wg-upload id="upload-view" .atpClient="${this.atpClient}" .friendsList="${[
                             { did: 'did:plc:alice', handle: 'alice.bsky.social' },
                             { did: 'did:plc:bob', handle: 'bob.bsky.social' }
-                        ]}"></w-upload>`
+                        ]}"></wg-upload>`
                         : this.currentView === 'activity-detail'
-                            ? html`<w-activity-detail activity-id="${this.currentActivityId}"></w-activity-detail>`
-                            : html`<w-feed id="feed-view" .atpClient="${this.atpClient}"></w-feed>`
+                            ? html`<wg-activity-detail activity-id="${this.currentActivityId}"></wg-activity-detail>`
+                            : html`<wg-feed id="feed-view" .atpClient="${this.atpClient}"></wg-feed>`
                 }
             </main>
             ${this.currentView !== 'login' ? html`
@@ -215,4 +215,4 @@ export class WApp extends LitElement {
     }
 }
 
-customElements.define('w-app', WApp);
+customElements.define('wg-app', WGApp);

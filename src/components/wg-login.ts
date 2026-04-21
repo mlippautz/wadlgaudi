@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { sharedStyles } from '../styles/shared-styles';
 import type { AtpClient } from '../lib/atp-client';
 
-export class WLogin extends LitElement {
+export class WGLogin extends LitElement {
     static properties = {
         atpClient: { type: Object },
     };
@@ -89,4 +89,4 @@ export class WLogin extends LitElement {
     }
 }
 
-customElements.define('w-login', WLogin);
+customElements.define('wg-login', WGLogin);
