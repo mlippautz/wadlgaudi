@@ -57,7 +57,6 @@ describe('AtpClient Data Layer', () => {
     it('should publish an activity record', async () => {
         const response = await client.publishActivityRecord('random-rkey', {
             createdAt: new Date().toISOString(),
-            encryptedSummary: 'encryptedData',
             activityBlob: { $type: 'blob' },
             accessList: { 'did:plc:friend': 'encryptedKey' }
         });

@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { sharedStyles } from '../styles/shared-styles';
 import type { AtpClient } from '../lib/atp-client';
 import { getActivities, deleteActivity, type StoredActivity } from '../lib/storage';
-import { deriveMasterKey, decryptSymmetric } from '../lib/crypto';
+
 import { getBlob, putBlob } from '../lib/blob-storage';
 import './wg-activity-card';
 
@@ -69,41 +69,12 @@ export class WGFeed extends LitElement {
                 const remoteRecords = await this.atpClient.listActivityRecords();
                 const localActivities = getActivities();
                 
-                let phrase = localStorage.getItem('wadlgaudi_phrase');
-                let masterKey: CryptoKey | null = null;
-                
-                if (!phrase && remoteRecords.length > 0) {
-                    const hasEncrypted = remoteRecords.some(r => (r.value as any).encryptedSummary && (r.value as any).encryptedSummary !== "{}");
-                    if (hasEncrypted) {
-                        phrase = prompt('Enter recovery phrase to decrypt activity details from Bluesky:');
-                        if (phrase) {
-                            localStorage.setItem('wadlgaudi_phrase', phrase);
-                        }
-                    }
-                }
-
-                if (phrase) {
-                    masterKey = await deriveMasterKey(phrase);
-                }
-
                 const remoteActivities: StoredActivity[] = [];
                 
                 for (const r of remoteRecords) {
                     const val = r.value as any;
                     let polyline = val.polyline || '';
                     let encryptionKey = undefined;
-
-                    if (masterKey && val.encryptedSummary && val.encryptedSummary !== "{}") {
-                        try {
-                            const encryptedBytes = new Uint8Array(atob(val.encryptedSummary).split('').map(c => c.charCodeAt(0)));
-                            const decryptedBytes = await decryptSymmetric(masterKey, encryptedBytes);
-                            const summaryObj = JSON.parse(new TextDecoder().decode(decryptedBytes));
-                            polyline = summaryObj.polyline || polyline;
-                            encryptionKey = summaryObj.activityKey;
-                        } catch (err) {
-                            console.warn(`[Feed] Failed to decrypt summary for ${r.uri}:`, err);
-                        }
-                    }
 
                     remoteActivities.push({
                         id: r.uri.split('/').pop() || r.cid,
@@ -112,8 +83,6 @@ export class WGFeed extends LitElement {
                         distance: val.distance || 0,
                         duration: val.duration || 0,
                         polyline: polyline,
-                        maxSpeed: val.maxSpeed || 0,
-                        calories: val.calories || 0,
                         encryptionKey: encryptionKey,
                         createdAt: val.createdAt || new Date().toISOString()
                     });

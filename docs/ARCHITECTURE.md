@@ -22,8 +22,10 @@ An activity consists of three parts:
 
 #### 1. Activity Record (`app.wadlgaudi.activity`)
 This is the main entry stored in the user's AT Protocol repository. It separates data into public metrics and encrypted fields for performance and privacy.
-- **Optional Public Metadata**: Fields like `createdAt`, `sportType`, `distance`, and `duration` can optionally be stored unencrypted. This "Public Stats, Private Route" approach allows activities to surface in custom public Bluesky feeds while keeping the actual map/location private.
-- **Encrypted Summary**: To ensure the app feed loads instantly without downloading massive files, a lightweight JSON summary (containing stats and perhaps a downsampled map polyline) is encrypted with the activity's symmetric key and stored directly as a string in this Record.
+
+**RULE**: Keep unencrypted data stored on PDS minimal. Only fields necessary for the feed (time, distance, polyline, sport type, upload date) should be stored unencrypted. Detailed or sensitive data (like calories and max speed) must be kept in the encrypted blob.
+
+- **Public Metadata**: Fields like `createdAt`, `sportType`, `distance`, `duration`, and `polyline` are stored unencrypted to support the feed view.
 - **Activity Blob CID**: A reference to the encrypted raw data blob.
 - **Access List**: A JSON map mapping user DIDs to their encrypted symmetric key. Storing this directly in the Record allows lightning-fast decryption and easy in-place updates when adding or removing friends.
 - **Access Blob CID (Optional Fallback)**: If the Access List grows too large and approaches the ~8KB Record limit, this field acts as a fallback, pointing to a Blob containing the expanded list.

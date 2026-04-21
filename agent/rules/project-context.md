@@ -22,4 +22,5 @@ When assisting with this codebase, always adhere to the following project-specif
 
 ## 5. Protocol Constraints
 - The app integrates directly with the **AT Protocol**.
-- Activity records (`app.wadlgaudi.activity`) must keep the "Encrypted Summary" lightweight to respect the ~8KB record limit. Large payloads (like `.tcx` files) are always uploaded as AT Protocol Blobs and referenced via CID.
+- **Data Minimization**: Keep unencrypted data stored on the PDS minimal. Only fields necessary for the feed (time, distance, polyline, sport type, upload date) should be stored unencrypted in the record to respect privacy and size limits. Detailed or sensitive data (like calories and max speed) must be kept in the encrypted blob.
+- Large payloads (like `.tcx` files) are always uploaded as AT Protocol Blobs and referenced via CID.

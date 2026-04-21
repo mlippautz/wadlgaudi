@@ -1,5 +1,6 @@
 /**
  * Wadlgaudi Custom Lexicons
+ * 
  * These interfaces map exactly to the data structures we store
  * on the AT Protocol PDS.
  */
@@ -13,6 +14,13 @@ export interface WadlgaudiCrypto {
     createdAt: string;
 }
 
+/**
+ * Wadlgaudi Activity Record
+ * 
+ * RULE: Keep unencrypted data stored on PDS minimal.
+ * Only fields necessary for the feed (time, distance, polyline, sport type, upload date)
+ * should be stored unencrypted. Detailed or sensitive data must be kept in the encrypted blob.
+ */
 export interface WadlgaudiActivity {
     $type: 'app.wadlgaudi.activity';
     createdAt: string;
@@ -21,13 +29,9 @@ export interface WadlgaudiActivity {
     sportType?: string;
     distance?: number;
     duration?: number;
-    calories?: number;
-    maxSpeed?: number;
+
     polyline?: string;
-    
-    // Symmetrically encrypted summary payload (JSON string containing downsampled map polyline)
-    encryptedSummary: string;
-    
+
     // AT Protocol Blob reference for the raw encrypted .tcx
     activityBlob: any; 
     

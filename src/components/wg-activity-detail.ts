@@ -2,7 +2,7 @@ import { LitElement, html, css, unsafeCSS } from 'lit';
 import { sharedStyles } from '../styles/shared-styles';
 import leafletStyles from 'leaflet/dist/leaflet.css?inline';
 import { getActivities } from '../lib/storage';
-import { extractCoordinates } from '../lib/activity-parser';
+import { extractCoordinates, parseTcx } from '../lib/activity-parser';
 import { importKeyFromBase64, decryptSymmetric } from '../lib/crypto';
 import { getBlob } from '../lib/blob-storage';
 import L from 'leaflet';
@@ -15,6 +15,8 @@ export class WGActivityDetail extends LitElement {
 
     declare activityId: string | null;
     private map: L.Map | null = null;
+    private decodedCalories: number | undefined = undefined;
+    private decodedMaxSpeed: number | undefined = undefined;
 
     constructor() {
         super();
@@ -168,7 +170,9 @@ export class WGActivityDetail extends LitElement {
         const s = Math.floor(d % 3600 % 60);
         const durationFmt = h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
         const dateFmt = new Date(activity.createdAt).toLocaleString();
-        const maxSpeedKmh = ((activity.maxSpeed || 0) * 3.6).toFixed(1);
+        const maxSpeedKmh = this.decodedMaxSpeed !== undefined 
+            ? (this.decodedMaxSpeed * 3.6).toFixed(1) 
+            : '--';
 
         return html`
             <div class="detail-container">
@@ -204,7 +208,7 @@ export class WGActivityDetail extends LitElement {
                     <div class="detail-grid">
                         <div class="detail-item">
                             <span class="detail-label">Calories</span>
-                            <span class="detail-value">${activity.calories || '--'} kcal</span>
+                            <span class="detail-value">${this.decodedCalories || '--'} kcal</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Max Speed</span>
@@ -234,6 +238,11 @@ export class WGActivityDetail extends LitElement {
             const key = await importKeyFromBase64(activity.encryptionKey);
             const decryptedBytes = await decryptSymmetric(key, encryptedBlob);
             const tcxString = new TextDecoder().decode(decryptedBytes);
+            
+            const summary = parseTcx(tcxString);
+            this.decodedCalories = summary.calories;
+            this.decodedMaxSpeed = summary.maxSpeed;
+            this.requestUpdate();
             
             const coordinates = extractCoordinates(tcxString);
             if (coordinates.length === 0) {
