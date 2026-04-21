@@ -1,11 +1,21 @@
+import { LitElement, html } from 'lit';
 import type { AtpClient } from '../lib/atp-client';
 import { getActivities, deleteActivity, type StoredActivity } from '../lib/storage';
+import './w-activity-card';
 
-export class WFeed extends HTMLElement {
+export class WFeed extends LitElement {
+    static properties = {
+        atpClient: { type: Object },
+        activities: { type: Array },
+    };
+
     private _atpClient?: AtpClient;
+    declare activities: StoredActivity[];
 
     set atpClient(client: AtpClient | undefined) {
+        const oldVal = this._atpClient;
         this._atpClient = client;
+        this.requestUpdate('atpClient', oldVal);
         if (client) {
             this.sync();
         }
@@ -15,17 +25,23 @@ export class WFeed extends HTMLElement {
         return this._atpClient;
     }
 
+    createRenderRoot() {
+        return this;
+    }
+
+    constructor() {
+        super();
+        this.activities = getActivities();
+    }
+
     async connectedCallback() {
-        // Initial render from local storage
-        const localActivities = getActivities();
-        this.render(localActivities);
+        super.connectedCallback();
         
-        // Listen for deletion (this one is on 'this', so it's fine)
+        // Listen for deletion
         this.addEventListener('delete-activity', async (e: any) => {
             const id = e.detail.id;
             if (id) {
-                const activities = getActivities();
-                const activity = activities.find(a => a.id === id);
+                const activity = this.activities.find(a => a.id === id);
                 
                 if (activity?.atpRecordKey && this.atpClient?.agent) {
                     try {
@@ -40,14 +56,12 @@ export class WFeed extends HTMLElement {
                 }
 
                 await deleteActivity(id);
-                const updated = getActivities();
-                this.render(updated);
+                this.activities = getActivities();
             }
         });
     }
 
     private async sync() {
-        // 1. If authenticated, sync with the AT Protocol
         if (this.atpClient?.agent) {
             try {
                 console.log('[Feed] Syncing with AT Protocol...');
@@ -72,7 +86,6 @@ export class WFeed extends HTMLElement {
                     masterKey = await deriveMasterKey(phrase);
                 }
 
-                // Map remote records to StoredActivity format
                 const remoteActivities: StoredActivity[] = [];
                 
                 for (const r of remoteRecords) {
@@ -80,7 +93,6 @@ export class WFeed extends HTMLElement {
                     let polyline = val.polyline || '';
                     let encryptionKey = undefined;
 
-                    // Try to decrypt summary if we have a master key
                     if (masterKey && val.encryptedSummary && val.encryptedSummary !== "{}") {
                         try {
                             const { decryptSymmetric } = await import('../lib/crypto');
@@ -108,7 +120,6 @@ export class WFeed extends HTMLElement {
                     });
                 }
 
-                // 2. Download missing blobs
                 const { getBlob, putBlob } = await import('../lib/blob-storage');
                 for (const remote of remoteActivities) {
                     const existingBlob = await getBlob(remote.id);
@@ -127,14 +138,12 @@ export class WFeed extends HTMLElement {
                     }
                 }
 
-                // 3. Merge with local activities
                 const merged = [...localActivities];
                 remoteActivities.forEach(remote => {
                     const exists = merged.find(local => local.atpRecordKey === remote.atpRecordKey);
                     if (!exists) {
                         merged.push(remote);
                     } else if (remote.encryptionKey && !exists.encryptionKey) {
-                        // Update local record if we just recovered the key
                         exists.encryptionKey = remote.encryptionKey;
                         exists.polyline = remote.polyline;
                     }
@@ -142,21 +151,18 @@ export class WFeed extends HTMLElement {
 
                 merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
                 localStorage.setItem('wadlgaudi_activities', JSON.stringify(merged));
-                this.render(merged);
+                this.activities = merged;
             } catch (err) {
                 console.error('[Feed] Failed to sync with AT Protocol:', err);
             }
         }
     }
 
-    private attachListeners() {
-        // (Moved to WApp header)
-    }
-
-    render(activities: StoredActivity[]) {
-        console.log('[Feed] Rendering UI with', activities.length, 'activities');
-        const activitiesHtml = activities.length > 0 
-            ? activities.map(act => `
+    render() {
+        console.log('[Feed] Rendering UI with', this.activities.length, 'activities');
+        
+        const activitiesHtml = this.activities.length > 0 
+            ? this.activities.map(act => html`
                 <w-activity-card 
                     id="${act.id}"
                     sport="${act.sportType}" 
@@ -165,12 +171,10 @@ export class WFeed extends HTMLElement {
                     polyline="${act.polyline || ''}"
                     date="${new Date(act.createdAt).toLocaleDateString()} ${new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}"
                 ></w-activity-card>
-            `).join('')
-            : '<p style="text-align: center; color: var(--text-muted); margin-top: 2rem;">No activities yet. Upload one to get started!</p>';
+            `)
+            : html`<p style="text-align: center; color: var(--text-muted); margin-top: 2rem;">No activities yet. Upload one to get started!</p>`;
 
-        this.innerHTML = `
-            <style>
-            </style>
+        return html`
             <div class="section-title">
                 Activity Feed
             </div>
@@ -179,8 +183,6 @@ export class WFeed extends HTMLElement {
                 ${activitiesHtml}
             </div>
         `;
-        
-        this.attachListeners();
     }
 }
 

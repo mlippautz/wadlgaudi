@@ -8,7 +8,7 @@ When assisting with this codebase, always adhere to the following project-specif
 - Only pull in lightweight NPM packages (e.g., `bip39`, `@mapbox/polyline`) when strictly necessary, and avoid large frameworks.
 
 ## 2. Frontend Architecture
-- **No Heavy Frameworks:** The web application is built strictly using **TypeScript**, **native Web Components**, and vanilla CSS. Do not introduce React, Vue, Svelte, or TailwindCSS.
+- **No Heavy Frameworks:** The web application is built using **TypeScript**, **Lit** (for Web Components), and vanilla CSS. Do not introduce React, Vue, Svelte, or TailwindCSS. We use Lit to reduce boilerplate while maintaining the lightweight spirit of native Web Components.
 - **Design System:** Use CSS variables for a dark-mode optimized, glassmorphic design system with modern typography and micro-animations.
 
 ## 3. Cryptography & Tooling

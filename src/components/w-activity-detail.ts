@@ -1,36 +1,67 @@
+import { LitElement, html } from 'lit';
 import { getActivities } from '../lib/storage';
 import { extractCoordinates } from '../lib/activity-parser';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-export class WActivityDetail extends HTMLElement {
-    static get observedAttributes() {
-        return ['activity-id'];
-    }
+export class WActivityDetail extends LitElement {
+    static properties = {
+        activityId: { type: String, attribute: 'activity-id' },
+    };
 
+    declare activityId: string | null;
     private map: L.Map | null = null;
 
-    connectedCallback() {
-        this.render();
+    constructor() {
+        super();
+        this.activityId = null;
     }
 
-    attributeChangedCallback() {
-        this.render();
+    createRenderRoot() {
+        return this;
     }
 
-    render() {
-        const id = this.getAttribute('activity-id');
-        const activity = getActivities().find(a => a.id === id);
-
-        if (!activity) {
-            this.innerHTML = `<div class="glass-panel" style="padding: 2rem; text-align: center;">Activity not found.</div>`;
-            return;
+    updated(changedProperties: Map<string, any>) {
+        if (changedProperties.has('activityId')) {
+            this.initMapAndBlob();
         }
+    }
+
+    async initMapAndBlob() {
+        const activity = getActivities().find(a => a.id === this.activityId);
+        if (!activity) return;
 
         // Cleanup existing map if any
         if (this.map) {
             this.map.remove();
             this.map = null;
+        }
+
+        const { getBlob } = await import('../lib/blob-storage');
+        const blob = await getBlob(activity.id);
+        const statusEl = this.querySelector('#blob-status');
+        const actionsEl = this.querySelector('#blob-actions') as HTMLElement;
+        const mapStatusEl = this.querySelector('#map-status') as HTMLElement;
+
+        if (blob) {
+            if (statusEl) statusEl.innerHTML = '<span style="color: var(--secondary-color)">✅ Available locally</span>';
+            if (actionsEl) actionsEl.style.display = 'block';
+            
+            this.querySelector('#download-btn')?.addEventListener('click', () => this.downloadDecrypted(activity, blob));
+
+            // Initialize Map
+            this.initMap(activity, blob);
+        } else {
+            if (statusEl) (statusEl as HTMLElement).innerText = 'Not available locally';
+            if (mapStatusEl) mapStatusEl.innerText = 'Track data not available locally.';
+        }
+    }
+
+    render() {
+        const activity = getActivities().find(a => a.id === this.activityId);
+
+        if (!activity) {
+            return html`<div class="glass-panel" style="padding: 2rem; text-align: center;">Activity not found.</div>`;
         }
 
         const distanceKm = (activity.distance / 1000).toFixed(2);
@@ -40,11 +71,9 @@ export class WActivityDetail extends HTMLElement {
         const s = Math.floor(d % 3600 % 60);
         const durationFmt = h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
         const dateFmt = new Date(activity.createdAt).toLocaleString();
-
-        // Convert max speed from m/s to km/h
         const maxSpeedKmh = ((activity.maxSpeed || 0) * 3.6).toFixed(1);
 
-        this.innerHTML = `
+        return html`
             <style>
                 .detail-container {
                     animation: fadeIn 0.3s ease;
@@ -153,7 +182,7 @@ export class WActivityDetail extends HTMLElement {
                 </div>
 
                 <div id="map-status">Loading track...</div>
-                <div id="map"></div>
+                <div id="map" style="height: 400px; width: 100%; margin: 1.5rem 0; z-index: 1;"></div>
 
                 <div class="hero-stats">
                     <div class="stat-card glass-panel">
@@ -194,29 +223,6 @@ export class WActivityDetail extends HTMLElement {
                 </div>
             </div>
         `;
-
-        this.checkBlob(activity);
-    }
-
-    async checkBlob(activity: any) {
-        const { getBlob } = await import('../lib/blob-storage');
-        const blob = await getBlob(activity.id);
-        const statusEl = this.querySelector('#blob-status');
-        const actionsEl = this.querySelector('#blob-actions') as HTMLElement;
-        const mapStatusEl = this.querySelector('#map-status') as HTMLElement;
-
-        if (blob) {
-            if (statusEl) statusEl.innerHTML = '<span style="color: var(--secondary-color)">✅ Available locally</span>';
-            if (actionsEl) actionsEl.style.display = 'block';
-            
-            this.querySelector('#download-btn')?.addEventListener('click', () => this.downloadDecrypted(activity, blob));
-
-            // Initialize Map
-            this.initMap(activity, blob);
-        } else {
-            if (statusEl) (statusEl as HTMLElement).innerText = 'Not available locally';
-            if (mapStatusEl) mapStatusEl.innerText = 'Track data not available locally.';
-        }
     }
 
     async initMap(activity: any, encryptedBlob: Uint8Array) {

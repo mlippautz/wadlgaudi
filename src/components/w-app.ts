@@ -1,21 +1,38 @@
+import { LitElement, html } from 'lit';
 import { AtpClient } from '../lib/atp-client';
 import './w-login';
 import './w-feed';
 import './w-upload';
 import './w-activity-detail';
 
-export class WApp extends HTMLElement {
+export class WApp extends LitElement {
+    static properties = {
+        currentView: { type: String },
+        currentActivityId: { type: String },
+    };
+
     private atpClient = new AtpClient();
-    private currentView: 'login' | 'feed' | 'upload' | 'activity-detail' = 'login';
-    private currentActivityId: string | null = null;
+    declare currentView: 'login' | 'feed' | 'upload' | 'activity-detail';
+    declare currentActivityId: string | null;
+
+    constructor() {
+        super();
+        this.currentView = 'login';
+        this.currentActivityId = null;
+    }
+
+    createRenderRoot() {
+        return this;
+    }
 
     async connectedCallback() {
+        super.connectedCallback();
+        
         // 1. First, check if we are returning from an OAuth flow
-        // This MUST happen before handleRoute to ensure the URL params are processed
         const isLoggedIn = await this.atpClient.initialize();
 
         // 2. Initial route handling
-        this.handleRoute(); // This already calls render()
+        this.handleRoute();
 
         // 3. Listen for browser navigation
         window.addEventListener('hashchange', () => {
@@ -42,7 +59,6 @@ export class WApp extends HTMLElement {
             if (confirm('Clear all local activities? This will NOT delete them from Bluesky.')) {
                 import('../lib/storage').then(async m => {
                     await m.clearActivities();
-                    // Force refresh current view if it's the feed
                     if (this.currentView === 'feed') this.handleRoute();
                 });
             }
@@ -82,25 +98,10 @@ export class WApp extends HTMLElement {
             this.currentView = 'login';
             if (!hash) window.location.hash = '#/login';
         }
-        this.render();
-        
-        // Header action listeners
-        this.querySelector('#logout-btn')?.addEventListener('click', () => {
-            this.dispatchEvent(new CustomEvent('action-logout', { bubbles: true, composed: true }));
-        });
-        this.querySelector('#clear-btn')?.addEventListener('click', () => {
-            this.dispatchEvent(new CustomEvent('action-clear', { bubbles: true, composed: true }));
-        });
-        this.querySelector('#debug-btn')?.addEventListener('click', () => {
-            this.dispatchEvent(new CustomEvent('action-debug', { bubbles: true, composed: true }));
-        });
-        this.querySelector('#add-btn')?.addEventListener('click', () => {
-            window.location.hash = '#/upload';
-        });
     }
 
     render() {
-        this.innerHTML = `
+        return html`
             <style>
                 .app-header {
                     position: sticky;
@@ -166,14 +167,8 @@ export class WApp extends HTMLElement {
                     display: flex;
                     gap: 1rem;
                 }
-                .btn-tertiary {
-                    /* Inherits base button styles */
-                }
-                .btn-tertiary:hover {
-                    /* Inherits shared hover effects */
-                }
             </style>
-            ${this.currentView !== 'login' ? `
+            ${this.currentView !== 'login' ? html`
                 <header class="app-header">
                     <div class="header-content">
                         <div style="display: flex; align-items: baseline; gap: 1rem;">
@@ -185,10 +180,10 @@ export class WApp extends HTMLElement {
                             </span>
                         </div>
                         <div class="actions">
-                            <button id="add-btn" class="btn-primary">
+                            <button id="add-btn" class="btn-primary" @click="${() => window.location.hash = '#/upload'}">
                                 <span>+</span> <span class="btn-text">New</span>
                             </button>
-                            <button id="logout-btn" class="btn-icon">
+                            <button id="logout-btn" class="btn-icon" @click="${() => this.dispatchEvent(new CustomEvent('action-logout'))}">
                                 <span class="btn-text">${this.atpClient.sessionDid ? 'Logout' : 'Sign In'}</span>
                             </button>
                         </div>
@@ -197,39 +192,26 @@ export class WApp extends HTMLElement {
             ` : ''}
             <main>
                 ${this.currentView === 'login' 
-                    ? '<w-login></w-login>' 
+                    ? html`<w-login .atpClient="${this.atpClient}"></w-login>` 
                     : this.currentView === 'upload'
-                        ? '<w-upload id="upload-view"></w-upload>'
+                        ? html`<w-upload id="upload-view" .atpClient="${this.atpClient}" .friendsList="${[
+                            { did: 'did:plc:alice', handle: 'alice.bsky.social' },
+                            { did: 'did:plc:bob', handle: 'bob.bsky.social' }
+                        ]}"></w-upload>`
                         : this.currentView === 'activity-detail'
-                            ? `<w-activity-detail activity-id="${this.currentActivityId}"></w-activity-detail>`
-                            : '<w-feed id="feed-view"></w-feed>'
+                            ? html`<w-activity-detail activity-id="${this.currentActivityId}"></w-activity-detail>`
+                            : html`<w-feed id="feed-view" .atpClient="${this.atpClient}"></w-feed>`
                 }
             </main>
-            ${this.currentView !== 'login' ? `
+            ${this.currentView !== 'login' ? html`
                 <footer class="app-footer">
                     <div class="footer-actions">
-                        <button id="debug-btn" class="btn-tertiary">List issues on Bluesky</button>
-                        <button id="clear-btn" class="btn-tertiary">Clear local storage</button>
+                        <button id="debug-btn" class="btn-tertiary" @click="${() => this.dispatchEvent(new CustomEvent('action-debug'))}">List issues on Bluesky</button>
+                        <button id="clear-btn" class="btn-tertiary" @click="${() => this.dispatchEvent(new CustomEvent('action-clear'))}">Clear local storage</button>
                     </div>
                 </footer>
             ` : ''}
         `;
-
-        if (this.currentView === 'login') {
-            const loginEl = this.querySelector('w-login');
-            if (loginEl) (loginEl as any).atpClient = this.atpClient;
-        } else if (this.currentView === 'feed') {
-            const feedEl = this.querySelector('w-feed');
-            if (feedEl) (feedEl as any).atpClient = this.atpClient;
-        } else if (this.currentView === 'upload') {
-            const uploadEl = this.querySelector('w-upload');
-            if (uploadEl) (uploadEl as any).atpClient = this.atpClient;
-            // Mock friends list for the UI
-            if (uploadEl) (uploadEl as any).friendsList = [
-                { did: 'did:plc:alice', handle: 'alice.bsky.social' },
-                { did: 'did:plc:bob', handle: 'bob.bsky.social' }
-            ];
-        }
     }
 }
 

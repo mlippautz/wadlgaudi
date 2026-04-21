@@ -1,95 +1,159 @@
+import { LitElement, html } from 'lit';
 import { parseTcx } from '../lib/activity-parser';
 import { generateAESKey, encryptSymmetric, decryptSymmetric } from '../lib/crypto';
 import { saveActivity } from '../lib/storage';
 import type { AtpClient } from '../lib/atp-client';
 
-export class WUpload extends HTMLElement {
-    public atpClient?: AtpClient;
-    public friendsList: { did: string, handle: string }[] = [];
-    private selectedFriends: Set<string> = new Set();
-    private file: File | null = null;
+export class WUpload extends LitElement {
+    static properties = {
+        atpClient: { type: Object },
+        friendsList: { type: Array },
+        file: { type: Object },
+        selectedFriends: { type: Object },
+    };
 
-    connectedCallback() {
-        this.render();
-        this.setupDragAndDrop();
-        this.setupFriendsSelect();
+    declare atpClient?: AtpClient;
+    declare friendsList: { did: string, handle: string }[];
+    private declare selectedFriends: Set<string>;
+    private declare file: File | null;
 
-        this.querySelector('#cancel-btn')?.addEventListener('click', () => {
-            window.location.hash = '#/feed';
-        });
-
-        this.querySelector('#submit-btn')?.addEventListener('click', this.handleSubmit.bind(this));
+    constructor() {
+        super();
+        this.friendsList = [];
+        this.selectedFriends = new Set();
+        this.file = null;
     }
 
-    setupDragAndDrop() {
-        const dropzone = this.querySelector('.dropzone') as HTMLElement;
-        const fileInput = this.querySelector('#file-input') as HTMLInputElement;
-
-        dropzone.addEventListener('click', () => fileInput.click());
-
-        dropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropzone.style.borderColor = 'var(--primary-hover)';
-            dropzone.style.background = 'rgba(139, 92, 246, 0.1)';
-        });
-
-        dropzone.addEventListener('dragleave', () => {
-            dropzone.style.borderColor = 'var(--surface-border)';
-            dropzone.style.background = 'transparent';
-        });
-
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            if (e.dataTransfer?.files.length) {
-                this.file = e.dataTransfer.files[0];
-                this.updateDropzoneUI();
-            }
-        });
-
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files?.length) {
-                this.file = fileInput.files[0];
-                this.updateDropzoneUI();
-            }
-        });
+    createRenderRoot() {
+        return this;
     }
 
-    updateDropzoneUI() {
+    render() {
+        return html`
+            <style>
+                .upload-container {
+                    animation: fadeIn 0.3s ease;
+                }
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                h3 { margin-bottom: 1rem; color: var(--primary-hover); }
+                
+                .dropzone {
+                    border: 2px dashed var(--surface-border);
+                    border-radius: var(--border-radius-md);
+                    padding: 3rem 2rem;
+                    text-align: center;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    margin-bottom: 2rem;
+                }
+                .dropzone p { color: var(--text-muted); }
+                
+                .section {
+                    margin-bottom: 2rem;
+                }
+                
+                .actions {
+                    display: flex;
+                    gap: 1rem;
+                    justify-content: flex-end;
+                }
+                .friend-item {
+                    padding: 0.75rem;
+                    margin-bottom: 0.5rem;
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: space-between;
+                    border: 1px solid var(--surface-border);
+                    border-radius: var(--border-radius-sm);
+                }
+                .friend-item.selected {
+                    border-color: var(--primary-color);
+                }
+            </style>
+            <div class="glass-panel upload-container" style="padding: 2rem">
+                <h3>Upload Activity</h3>
+                
+                <div class="dropzone" 
+                     @click="${this.onDropzoneClick}"
+                     @dragover="${this.onDragOver}"
+                     @dragleave="${this.onDragLeave}"
+                     @drop="${this.onDrop}"
+                     style="${this.file ? 'border-color: var(--secondary-color);' : ''}">
+                    ${this.file 
+                        ? html`<p style="color: var(--secondary-color)">✅ ${this.file.name} selected.</p>`
+                        : html`<p>Drag and drop your .tcx file here, or click to browse.</p>`
+                    }
+                </div>
+                <input type="file" id="file-input" accept=".tcx" style="display:none" @change="${this.onFileChange}" />
+
+                <div class="section">
+                    <h4>Share with Friends (E2E Encrypted)</h4>
+                    <p style="font-size:0.85rem; color: var(--text-muted); margin-bottom:1rem;">Select who gets the decryption key.</p>
+                    <div class="friends-list">
+                        ${this.friendsList.map(friend => html`
+                            <div class="friend-item glass-panel ${this.selectedFriends.has(friend.did) ? 'selected' : ''}" 
+                                 @click="${() => this.toggleFriend(friend.did)}">
+                                <span>@${friend.handle}</span> 
+                                <span class="check">${this.selectedFriends.has(friend.did) ? '✅' : ''}</span>
+                            </div>
+                        `)}
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button id="cancel-btn" @click="${() => window.location.hash = '#/feed'}">Cancel</button>
+                    <button id="submit-btn" @click="${this.handleSubmit}">Publish to Bluesky</button>
+                </div>
+                <div id="status-msg" style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-main);"></div>
+            </div>
+        `;
+    }
+
+    onDropzoneClick() {
+        this.querySelector('#file-input')?.click();
+    }
+
+    onDragOver(e: DragEvent) {
+        e.preventDefault();
         const dropzone = this.querySelector('.dropzone') as HTMLElement;
-        if (this.file) {
-            dropzone.innerHTML = `<p style="color: var(--secondary-color)">✅ ${this.file.name} selected.</p>`;
-            dropzone.style.borderColor = 'var(--secondary-color)';
+        dropzone.style.borderColor = 'var(--primary-hover)';
+        dropzone.style.background = 'rgba(139, 92, 246, 0.1)';
+    }
+
+    onDragLeave() {
+        const dropzone = this.querySelector('.dropzone') as HTMLElement;
+        dropzone.style.borderColor = this.file ? 'var(--secondary-color)' : 'var(--surface-border)';
+        dropzone.style.background = 'transparent';
+    }
+
+    onDrop(e: DragEvent) {
+        e.preventDefault();
+        if (e.dataTransfer?.files.length) {
+            this.file = e.dataTransfer.files[0];
+            this.requestUpdate();
         }
     }
 
-    setupFriendsSelect() {
-        const listContainer = this.querySelector('.friends-list') as HTMLElement;
-        listContainer.innerHTML = '';
+    onFileChange(e: Event) {
+        const fileInput = e.target as HTMLInputElement;
+        if (fileInput.files?.length) {
+            this.file = fileInput.files[0];
+            this.requestUpdate();
+        }
+    }
 
-        this.friendsList.forEach(friend => {
-            const div = document.createElement('div');
-            div.className = 'friend-item glass-panel';
-            div.style.padding = '0.75rem';
-            div.style.marginBottom = '0.5rem';
-            div.style.cursor = 'pointer';
-            div.style.display = 'flex';
-            div.style.justifyContent = 'space-between';
-            div.innerHTML = `<span>@${friend.handle}</span> <span class="check"></span>`;
-
-            div.addEventListener('click', () => {
-                if (this.selectedFriends.has(friend.did)) {
-                    this.selectedFriends.delete(friend.did);
-                    div.style.borderColor = 'var(--surface-border)';
-                    (div.querySelector('.check') as HTMLElement).innerText = '';
-                } else {
-                    this.selectedFriends.add(friend.did);
-                    div.style.borderColor = 'var(--primary-color)';
-                    (div.querySelector('.check') as HTMLElement).innerText = '✅';
-                }
-            });
-
-            listContainer.appendChild(div);
-        });
+    toggleFriend(did: string) {
+        const newSet = new Set(this.selectedFriends);
+        if (newSet.has(did)) {
+            newSet.delete(did);
+        } else {
+            newSet.add(did);
+        }
+        this.selectedFriends = newSet;
+        this.requestUpdate();
     }
 
     async handleSubmit() {
@@ -99,11 +163,7 @@ export class WUpload extends HTMLElement {
         }
         
         const btn = this.querySelector('#submit-btn') as HTMLButtonElement;
-        const statusMsg = document.createElement('div');
-        statusMsg.style.marginTop = '1rem';
-        statusMsg.style.fontSize = '0.9rem';
-        statusMsg.style.color = 'var(--text-main)';
-        btn.parentElement?.parentElement?.appendChild(statusMsg);
+        const statusMsg = this.querySelector('#status-msg') as HTMLElement;
 
         btn.innerText = 'Processing...';
         btn.disabled = true;
@@ -209,61 +269,6 @@ export class WUpload extends HTMLElement {
             btn.innerText = 'Publish to Bluesky';
             btn.disabled = false;
         }
-    }
-
-    render() {
-        this.innerHTML = `
-            <style>
-                .upload-container {
-                    animation: fadeIn 0.3s ease;
-                }
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                h3 { margin-bottom: 1rem; color: var(--primary-hover); }
-                
-                .dropzone {
-                    border: 2px dashed var(--surface-border);
-                    border-radius: var(--border-radius-md);
-                    padding: 3rem 2rem;
-                    text-align: center;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    margin-bottom: 2rem;
-                }
-                .dropzone p { color: var(--text-muted); }
-                
-                .section {
-                    margin-bottom: 2rem;
-                }
-                
-                .actions {
-                    display: flex;
-                    gap: 1rem;
-                    justify-content: flex-end;
-                }
-            </style>
-            <div class="glass-panel upload-container" style="padding: 2rem">
-                <h3>Upload Activity</h3>
-                
-                <div class="dropzone">
-                    <p>Drag and drop your .tcx file here, or click to browse.</p>
-                </div>
-                <input type="file" id="file-input" accept=".tcx" style="display:none" />
-
-                <div class="section">
-                    <h4>Share with Friends (E2E Encrypted)</h4>
-                    <p style="font-size:0.85rem; color: var(--text-muted); margin-bottom:1rem;">Select who gets the decryption key.</p>
-                    <div class="friends-list"></div>
-                </div>
-
-                <div class="actions">
-                    <button id="cancel-btn">Cancel</button>
-                    <button id="submit-btn">Publish to Bluesky</button>
-                </div>
-            </div>
-        `;
     }
 }
 

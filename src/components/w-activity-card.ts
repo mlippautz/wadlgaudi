@@ -1,43 +1,46 @@
+import { LitElement, html } from 'lit';
 import polyline from '@mapbox/polyline';
 
-export class WActivityCard extends HTMLElement {
-    static get observedAttributes() {
-        return ['sport', 'distance', 'duration', 'date', 'polyline'];
+export class WActivityCard extends LitElement {
+    static properties = {
+        sport: { type: String },
+        distance: { type: String },
+        duration: { type: String },
+        date: { type: String },
+        polyline: { type: String },
+        id: { type: String },
+    };
+
+    declare sport: string;
+    declare distance: string;
+    declare duration: string;
+    declare date: string;
+    declare polyline: string;
+    declare id: string;
+
+    constructor() {
+        super();
+        this.sport = 'Activity';
+        this.distance = '0';
+        this.duration = '0';
+        this.date = new Date().toLocaleDateString();
+        this.polyline = '';
+        this.id = '';
     }
 
-    connectedCallback() {
-        this.render();
-        this.querySelector('.delete-btn')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (confirm('Are you sure you want to delete this activity?')) {
-                this.dispatchEvent(new CustomEvent('delete-activity', {
-                    bubbles: true,
-                    composed: true,
-                    detail: { id: this.getAttribute('id') }
-                }));
-            }
-        });
-    }
-
-    attributeChangedCallback() {
-        this.render();
+    createRenderRoot() {
+        return this;
     }
 
     render() {
-        const sport = this.getAttribute('sport') || 'Activity';
-        const distance = this.getAttribute('distance') || '0';
-        const duration = this.getAttribute('duration') || '0';
-        const date = this.getAttribute('date') || new Date().toLocaleDateString();
-        const polyline = this.getAttribute('polyline') || '';
-
-        const distanceKm = (Number(distance) / 1000).toFixed(2);
-        const d = Number(duration);
+        const distanceKm = (Number(this.distance) / 1000).toFixed(2);
+        const d = Number(this.duration);
         const h = Math.floor(d / 3600);
         const m = Math.floor(d % 3600 / 60);
         const s = Math.floor(d % 3600 % 60);
         const durationFmt = h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
 
-        this.innerHTML = `
+        return html`
             <style>
                 .card {
                     padding: 1.25rem 1.5rem;
@@ -129,13 +132,13 @@ export class WActivityCard extends HTMLElement {
                     opacity: 1;
                 }
             </style>
-            <a href="#/activity/${this.getAttribute('id')}" style="text-decoration: none; color: inherit; display: block;">
+            <a href="#/activity/${this.id}" style="text-decoration: none; color: inherit; display: block;">
                 <div class="glass-panel card">
                     <div class="header">
-                        <span class="sport-badge">${sport}</span>
+                        <span class="sport-badge">${this.sport}</span>
                         <div style="display: flex; align-items: center;">
-                            <span class="date">${date}</span>
-                            <button class="delete-btn" title="Delete Activity">&times;</button>
+                            <span class="date">${this.date}</span>
+                            <button class="delete-btn" title="Delete Activity" @click="${this.onDelete}">&times;</button>
                         </div>
                     </div>
                     <div class="main-content">
@@ -149,11 +152,23 @@ export class WActivityCard extends HTMLElement {
                                 <div class="value">${durationFmt}</div>
                             </div>
                         </div>
-                        ${this.renderMiniMap(polyline)}
+                        ${this.renderMiniMap(this.polyline)}
                     </div>
                 </div>
             </a>
         `;
+    }
+
+    onDelete(e: Event) {
+        e.preventDefault(); // Prevent navigation to detail view
+        e.stopPropagation();
+        if (confirm('Are you sure you want to delete this activity?')) {
+            this.dispatchEvent(new CustomEvent('delete-activity', {
+                bubbles: true,
+                composed: true,
+                detail: { id: this.id }
+            }));
+        }
     }
 
     private renderMiniMap(polylineStr: string) {
@@ -185,7 +200,7 @@ export class WActivityCard extends HTMLElement {
                 return `${x.toFixed(1)},${y.toFixed(1)}`;
             }).join(' ');
 
-            return `
+            return html`
                 <div class="mini-map">
                     <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
                         <polyline points="${svgPts}" fill="none" />

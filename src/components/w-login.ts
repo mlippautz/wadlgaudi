@@ -1,34 +1,19 @@
+import { LitElement, html } from 'lit';
 import type { AtpClient } from '../lib/atp-client';
 
-export class WLogin extends HTMLElement {
-    public atpClient?: AtpClient;
+export class WLogin extends LitElement {
+    static properties = {
+        atpClient: { type: Object },
+    };
 
-    connectedCallback() {
-        this.render();
-        this.querySelector('form')?.addEventListener('submit', this.handleLogin.bind(this));
-        this.querySelector('#skip-btn')?.addEventListener('click', () => {
-            this.dispatchEvent(new CustomEvent('login-success', { bubbles: true, composed: true }));
-        });
-    }
+    declare atpClient?: AtpClient;
 
-    async handleLogin(e: Event) {
-        e.preventDefault();
-        const handleInput = this.querySelector('#handle') as HTMLInputElement;
-        const handle = handleInput.value.trim();
-
-        if (handle && this.atpClient) {
-            try {
-                // Starts the OAuth flow (will redirect the browser)
-                await this.atpClient.login(handle);
-            } catch (err) {
-                alert('Login failed. Please check console.');
-                console.error(err);
-            }
-        }
+    createRenderRoot() {
+        return this;
     }
 
     render() {
-        this.innerHTML = `
+        return html`
             <style>
                 .login-container {
                     padding: 3rem 2rem;
@@ -71,16 +56,35 @@ export class WLogin extends HTMLElement {
                 <h1 class="brand-title">Wadlgaudi</h1>
                 <p class="brand-tagline">Your Decentralized Activity Tracker</p>
                 
-                <form>
+                <form @submit="${this.handleLogin}">
                     <div class="input-group">
                         <label for="handle">Bluesky Handle</label>
                         <input type="text" id="handle" required placeholder="yourname.bsky.social" spellcheck="false" />
                     </div>
                     <button type="submit" class="auth-btn">Connect with AT Protocol</button>
-                    <button type="button" id="skip-btn" class="auth-btn skip-btn">Continue without login</button>
+                    <button type="button" id="skip-btn" class="auth-btn skip-btn" @click="${this.onSkip}">Continue without login</button>
                 </form>
             </div>
         `;
+    }
+
+    async handleLogin(e: Event) {
+        e.preventDefault();
+        const handleInput = this.querySelector('#handle') as HTMLInputElement;
+        const handle = handleInput.value.trim();
+
+        if (handle && this.atpClient) {
+            try {
+                await this.atpClient.login(handle);
+            } catch (err) {
+                alert('Login failed. Please check console.');
+                console.error(err);
+            }
+        }
+    }
+
+    onSkip() {
+        this.dispatchEvent(new CustomEvent('login-success', { bubbles: true, composed: true }));
     }
 }
 
