@@ -8,6 +8,7 @@ export interface ActivitySummary {
     polyline: string;
     calories?: number;
     maxSpeed?: number; // m/s
+    averageHeartRate?: number; // bpm
 }
 
 /**
@@ -60,6 +61,8 @@ export function parseTcx(tcxString: string): ActivitySummary {
     let totalDuration = 0;
     let totalCalories = 0;
     let maxSpeed = 0;
+    let totalHr = 0;
+    let hrCount = 0;
 
     for (const lap of laps) {
         totalDistance += Number(lap.DistanceMeters || 0);
@@ -68,7 +71,20 @@ export function parseTcx(tcxString: string): ActivitySummary {
         if (Number(lap.MaximumSpeed || 0) > maxSpeed) {
             maxSpeed = Number(lap.MaximumSpeed);
         }
+        
+        const tracks = Array.isArray(lap.Track) ? lap.Track : [lap.Track].filter(Boolean);
+        for (const track of tracks) {
+            const trackpoints = Array.isArray(track.Trackpoint) ? track.Trackpoint : [track.Trackpoint].filter(Boolean);
+            for (const tp of trackpoints) {
+                const hr = tp.HeartRateBpm?.Value;
+                if (hr) {
+                    totalHr += Number(hr);
+                    hrCount++;
+                }
+            }
+        }
     }
+    const avgHeartRate = hrCount > 0 ? Math.round(totalHr / hrCount) : undefined;
 
     const coordinates = extractCoordinates(tcxString);
 
@@ -85,6 +101,7 @@ export function parseTcx(tcxString: string): ActivitySummary {
         duration: totalDuration,
         polyline: encodedPolyline,
         calories: totalCalories,
-        maxSpeed: maxSpeed
+        maxSpeed: maxSpeed,
+        averageHeartRate: avgHeartRate
     };
 }

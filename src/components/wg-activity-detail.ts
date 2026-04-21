@@ -17,6 +17,7 @@ export class WGActivityDetail extends LitElement {
     private map: L.Map | null = null;
     private decodedCalories: number | undefined = undefined;
     private decodedMaxSpeed: number | undefined = undefined;
+    private decodedAvgHeartRate: number | undefined = undefined;
 
     constructor() {
         super();
@@ -219,8 +220,8 @@ export class WGActivityDetail extends LitElement {
                             <span class="detail-value">${this.calculatePace(activity.duration, activity.distance)} min/km</span>
                         </div>
                         <div class="detail-item">
-                            <span class="detail-label">Data Points</span>
-                            <span class="detail-value" id="blob-status">Checking local storage...</span>
+                            <span class="detail-label">Average Heart Rate</span>
+                            <span class="detail-value">${this.decodedAvgHeartRate || '--'} bpm</span>
                         </div>
                     </div>
                     <div id="blob-actions" style="margin-top: 1.5rem; display: none;">
@@ -261,6 +262,7 @@ export class WGActivityDetail extends LitElement {
             const summary = parseTcx(tcxString);
             this.decodedCalories = summary.calories;
             this.decodedMaxSpeed = summary.maxSpeed;
+            this.decodedAvgHeartRate = summary.averageHeartRate;
             this.requestUpdate();
             
             const coordinates = extractCoordinates(tcxString);

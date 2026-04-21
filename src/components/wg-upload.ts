@@ -88,7 +88,7 @@ export class WGUpload extends LitElement {
 
                 <div class="actions">
                     <button id="cancel-btn" @click="${() => window.location.hash = '#/feed'}">Cancel</button>
-                    <button id="submit-btn" @click="${this.handleSubmit}">Publish to Bluesky</button>
+                    <button id="submit-btn" @click="${this.handleSubmit}">Publish</button>
                 </div>
                 <div id="status-msg" style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-main);"></div>
             </div>
@@ -225,7 +225,7 @@ export class WGUpload extends LitElement {
         } catch (err) {
             console.error(err);
             statusMsg.innerHTML += `<span style="color: #ef4444">❌ Error: ${(err as Error).message}</span><br>`;
-            btn.innerText = 'Publish to Bluesky';
+            btn.innerText = 'Publish';
             btn.disabled = false;
         }
     }
