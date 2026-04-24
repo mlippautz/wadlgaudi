@@ -2,7 +2,7 @@ import { LitElement, html, css, unsafeCSS } from 'lit';
 import { sharedStyles } from '../styles/shared-styles';
 import leafletStyles from 'leaflet/dist/leaflet.css?inline';
 import { getActivities, getPassphrase } from '../lib/storage';
-import { extractCoordinates, parseTcx } from '../lib/activity-parser';
+import { extractTrackData, parseTcx } from '../lib/activity-parser';
 import { decryptSymmetric, deriveMasterKey } from '../lib/crypto';
 import { getBlob } from '../lib/blob-storage';
 import L from 'leaflet';
@@ -11,6 +11,14 @@ import L from 'leaflet';
 export class WGActivityDetail extends LitElement {
     static properties = {
         activityId: { type: String, attribute: 'activity-id' },
+        chartAreaPath: { type: String, state: true },
+        chartLinePath: { type: String, state: true },
+        showMarker: { type: Boolean, state: true },
+        markerX: { type: Number, state: true },
+        markerY: { type: Number, state: true },
+        minElev: { type: Number, state: true },
+        maxElev: { type: Number, state: true },
+        totalDist: { type: String, state: true }
     };
 
     declare activityId: string | null;
@@ -19,9 +27,28 @@ export class WGActivityDetail extends LitElement {
     private decodedMaxSpeed: number | undefined = undefined;
     private decodedAvgHeartRate: number | undefined = undefined;
 
+    declare chartAreaPath: string;
+    declare chartLinePath: string;
+    declare showMarker: boolean;
+    declare markerX: number;
+    declare markerY: number;
+    declare minElev: number;
+    declare maxElev: number;
+    declare totalDist: string;
+    private trackData: any[] = [];
+    private mapMarker: L.CircleMarker | null = null;
+
     constructor() {
         super();
         this.activityId = null;
+        this.chartAreaPath = '';
+        this.chartLinePath = '';
+        this.showMarker = false;
+        this.markerX = 0;
+        this.markerY = 0;
+        this.minElev = 0;
+        this.maxElev = 0;
+        this.totalDist = '0';
     }
 
     static styles = [
@@ -119,6 +146,50 @@ export class WGActivityDetail extends LitElement {
             }
             .detail-label { color: var(--text-muted); }
             .detail-value { font-weight: 600; }
+
+            .elevation-card {
+                background: #1a1a1c;
+                border: 1px solid #333;
+                border-radius: 12px;
+                padding: 20px 25px 35px 20px;
+                color: #fff;
+                font-family: 'Inter', sans-serif;
+                margin-top: 1rem;
+            }
+            .elevation-card h3 {
+                margin: 0 0 1rem 0;
+                font-size: 0.9rem;
+                color: #888;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+            .chart-svg {
+                width: 100%;
+                height: 180px;
+                overflow: visible;
+                cursor: crosshair;
+            }
+            .axis {
+                stroke: #444;
+                stroke-width: 1;
+            }
+            .axis-label {
+                fill: #777;
+                font-size: 11px;
+            }
+            .elevation-line {
+                stroke: #4CAF50;
+                stroke-width: 2;
+                fill: none;
+            }
+            .elevation-fill {
+                fill: rgba(76, 175, 80, 0.05);
+            }
+            .sync-marker {
+                stroke: #666;
+                stroke-width: 1;
+                stroke-dasharray: 2;
+            }
         `
     ];
 
@@ -193,6 +264,30 @@ export class WGActivityDetail extends LitElement {
                 <div id="map-status">Loading track...</div>
                 <div id="map" style="height: 400px; width: 100%; margin: 1.5rem 0; z-index: 1;"></div>
 
+                ${this.chartLinePath ? html`
+                  <div class="elevation-card">
+                    <h3>Elevation Profile</h3>
+                    <svg class="chart-svg" viewBox="0 0 1000 200" preserveAspectRatio="none"
+                         @mousemove="${this._handleChartMove}" @mouseleave="${this._handleChartLeave}">
+                      <line x1="50" y1="50" x2="1000" y2="50" stroke="#222" stroke-width="1" />
+                      <line x1="50" y1="100" x2="1000" y2="100" stroke="#222" stroke-width="1" />
+                      <line x1="50" y1="150" x2="1000" y2="150" stroke="#222" stroke-width="1" />
+                      <line x1="50" y1="10" x2="50" y2="180" class="axis" />
+                      <text x="45" y="15" text-anchor="end" class="axis-label">${Math.round(this.maxElev)}m</text>
+                      <text x="45" y="180" text-anchor="end" class="axis-label">${Math.round(this.minElev)}m</text>
+                      <line x1="50" y1="180" x2="1000" y2="180" class="axis" />
+                      <text x="50" y="198" text-anchor="start" class="axis-label">0 km</text>
+                      <text x="1000" y="198" text-anchor="end" class="axis-label">${this.totalDist} km</text>
+                      <path d="${this.chartAreaPath}" class="elevation-fill" />
+                      <path d="${this.chartLinePath}" class="elevation-line" />
+                      ${this.showMarker ? html`
+                        <line x1="${this.markerX}" y1="10" x2="${this.markerX}" y2="180" class="sync-marker" />
+                        <circle cx="${this.markerX}" cy="${this.markerY}" r="4" fill="#4CAF50" />
+                      ` : ''}
+                    </svg>
+                  </div>
+                ` : ''}
+
                 <div class="hero-stats">
                     <div class="stat-card glass-panel">
                         <div class="label">Distance</div>
@@ -265,11 +360,40 @@ export class WGActivityDetail extends LitElement {
             this.decodedAvgHeartRate = summary.averageHeartRate;
             this.requestUpdate();
             
-            const coordinates = extractCoordinates(tcxString);
+            const trackData = extractTrackData(tcxString);
+            this.trackData = trackData;
+            
+            const coordinates = trackData.map(pt => [pt.lat, pt.lng] as [number, number]);
             if (coordinates.length === 0) {
                 const mapStatusEl = this.renderRoot.querySelector('#map-status') as HTMLElement;
                 if (mapStatusEl) mapStatusEl.innerText = 'No GPS coordinates found in track.';
                 return;
+            }
+
+            // Calculate chart paths
+            const validPoints = trackData.filter(pt => pt.alt !== undefined && (pt.distance !== undefined || pt.timeOffset !== undefined));
+            if (validPoints.length > 1) {
+                const getXVal = (pt: any) => pt.distance !== undefined ? pt.distance : pt.timeOffset!;
+                const minAlt = Math.min(...validPoints.map(p => p.alt!));
+                const maxAlt = Math.max(...validPoints.map(p => p.alt!));
+                const maxX = getXVal(validPoints[validPoints.length - 1]);
+                this.minElev = minAlt;
+                this.maxElev = maxAlt;
+                this.totalDist = (maxX / 1000).toFixed(2);
+                
+                const svgWidth = 950;
+                const mapX = (x: number) => maxX > 0 ? 50 + (x / maxX) * svgWidth : 50;
+                const mapY = (a: number) => {
+                    const range = maxAlt - minAlt || 1;
+                    return 180 - ((a - minAlt) / range) * 170;
+                };
+
+                let lineD = validPoints.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${mapX(getXVal(pt))} ${mapY(pt.alt!)}`).join(' ');
+                this.chartLinePath = lineD;
+                this.chartAreaPath = `${lineD} L 1000 180 L 50 180 Z`;
+            } else {
+                this.chartLinePath = '';
+                this.chartAreaPath = '';
             }
 
             const mapEl = this.renderRoot.querySelector('#map') as HTMLElement;
@@ -365,6 +489,76 @@ export class WGActivityDetail extends LitElement {
         const mins = Math.floor(paceMin);
         const secs = Math.floor((paceMin - mins) * 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    private _handleChartMove(e: MouseEvent) {
+        if (!this.trackData || this.trackData.length === 0) return;
+        const svg = e.currentTarget as SVGSVGElement;
+        const rect = svg.getBoundingClientRect();
+        
+        const clickX = e.clientX - rect.left;
+        const viewBoxX = (clickX / rect.width) * 1000;
+        
+        let chartX = viewBoxX;
+        if (chartX < 50) chartX = 50;
+        if (chartX > 1000) chartX = 1000;
+        
+        const ratio = (chartX - 50) / 950;
+        
+        const validPoints = this.trackData.filter(pt => pt.alt !== undefined && (pt.distance !== undefined || pt.timeOffset !== undefined));
+        if (validPoints.length === 0) return;
+        const getXVal = (pt: any) => pt.distance !== undefined ? pt.distance : pt.timeOffset!;
+        
+        const maxX = getXVal(validPoints[validPoints.length - 1]);
+        const targetX = ratio * maxX;
+        
+        let closestIdx = 0;
+        let minDiff = Infinity;
+        validPoints.forEach((pt, idx) => {
+            const diff = Math.abs(getXVal(pt) - targetX);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestIdx = idx;
+            }
+        });
+        
+        const pt = validPoints[closestIdx];
+        const minAlt = Math.min(...validPoints.map(p => p.alt!));
+        const maxAlt = Math.max(...validPoints.map(p => p.alt!));
+        
+        const svgWidth = 950;
+        const mapX = (x: number) => maxX > 0 ? 50 + (x / maxX) * svgWidth : 50;
+        const mapY = (a: number) => {
+            const range = maxAlt - minAlt || 1;
+            return 180 - ((a - minAlt) / range) * 170;
+        };
+        
+        this.markerX = mapX(getXVal(pt));
+        this.markerY = mapY(pt.alt!);
+        this.showMarker = true;
+
+        if (this.map) {
+            if (!this.mapMarker) {
+                this.mapMarker = L.circleMarker([pt.lat, pt.lng], {
+                    radius: 5,
+                    fillColor: '#2196F3',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 1
+                }).addTo(this.map);
+            } else {
+                this.mapMarker.setLatLng([pt.lat, pt.lng]);
+            }
+        }
+    }
+
+    private _handleChartLeave() {
+        this.showMarker = false;
+        if (this.map && this.mapMarker) {
+            this.map.removeLayer(this.mapMarker);
+            this.mapMarker = null;
+        }
     }
 }
 

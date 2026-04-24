@@ -11,10 +11,18 @@ export interface ActivitySummary {
     averageHeartRate?: number; // bpm
 }
 
+export interface TrackPointData {
+    lat: number;
+    lng: number;
+    alt?: number;
+    distance?: number;
+    timeOffset?: number; // seconds since start
+}
+
 /**
- * Extracts all coordinates from a TCX XML string.
+ * Extracts all track points with elevation and time data from a TCX XML string.
  */
-export function extractCoordinates(tcxString: string): [number, number][] {
+export function extractTrackData(tcxString: string): TrackPointData[] {
     const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
     const parsed = parser.parse(tcxString);
 
@@ -24,7 +32,8 @@ export function extractCoordinates(tcxString: string): [number, number][] {
     const act = Array.isArray(activity) ? activity[0] : activity;
     const laps = Array.isArray(act.Lap) ? act.Lap : [act.Lap].filter(Boolean);
     
-    const coordinates: [number, number][] = [];
+    const trackData: TrackPointData[] = [];
+    let startTime: number | null = null;
 
     for (const lap of laps) {
         const tracks = Array.isArray(lap.Track) ? lap.Track : [lap.Track].filter(Boolean);
@@ -32,15 +41,31 @@ export function extractCoordinates(tcxString: string): [number, number][] {
             const trackpoints = Array.isArray(track.Trackpoint) ? track.Trackpoint : [track.Trackpoint].filter(Boolean);
             for (const tp of trackpoints) {
                 if (tp.Position && tp.Position.LatitudeDegrees && tp.Position.LongitudeDegrees) {
-                    coordinates.push([
-                        Number(tp.Position.LatitudeDegrees),
-                        Number(tp.Position.LongitudeDegrees)
-                    ]);
+                    const lat = Number(tp.Position.LatitudeDegrees);
+                    const lng = Number(tp.Position.LongitudeDegrees);
+                    const alt = tp.AltitudeMeters !== undefined ? Number(tp.AltitudeMeters) : undefined;
+                    const distance = tp.DistanceMeters !== undefined ? Number(tp.DistanceMeters) : undefined;
+                    
+                    let timeOffset = undefined;
+                    if (tp.Time) {
+                        const t = new Date(tp.Time).getTime();
+                        if (startTime === null) startTime = t;
+                        timeOffset = (t - startTime) / 1000;
+                    }
+
+                    trackData.push({ lat, lng, alt, distance, timeOffset });
                 }
             }
         }
     }
-    return coordinates;
+    return trackData;
+}
+
+/**
+ * Extracts all coordinates from a TCX XML string.
+ */
+export function extractCoordinates(tcxString: string): [number, number][] {
+    return extractTrackData(tcxString).map(pt => [pt.lat, pt.lng]);
 }
 
 /**
