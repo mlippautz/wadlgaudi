@@ -1,4 +1,4 @@
-import { LitElement, html, css, unsafeCSS } from 'lit';
+import { LitElement, html, css, unsafeCSS, svg } from 'lit';
 import { sharedStyles } from '../styles/shared-styles';
 import leafletStyles from 'leaflet/dist/leaflet.css?inline';
 import { getActivities, getPassphrase } from '../lib/storage';
@@ -16,6 +16,8 @@ export class WGActivityDetail extends LitElement {
         showMarker: { type: Boolean, state: true },
         markerX: { type: Number, state: true },
         markerY: { type: Number, state: true },
+        markerAlt: { type: Number, state: true },
+        markerDist: { type: Number, state: true },
         minElev: { type: Number, state: true },
         maxElev: { type: Number, state: true },
         totalDist: { type: String, state: true }
@@ -32,11 +34,13 @@ export class WGActivityDetail extends LitElement {
     declare showMarker: boolean;
     declare markerX: number;
     declare markerY: number;
+    declare markerAlt: number;
+    declare markerDist: number;
     declare minElev: number;
     declare maxElev: number;
     declare totalDist: string;
     private trackData: any[] = [];
-    private mapMarker: L.CircleMarker | null = null;
+    private mapMarker: L.Marker | null = null;
 
     constructor() {
         super();
@@ -46,6 +50,8 @@ export class WGActivityDetail extends LitElement {
         this.showMarker = false;
         this.markerX = 0;
         this.markerY = 0;
+        this.markerAlt = 0;
+        this.markerDist = 0;
         this.minElev = 0;
         this.maxElev = 0;
         this.totalDist = '0';
@@ -148,7 +154,7 @@ export class WGActivityDetail extends LitElement {
             .detail-value { font-weight: 600; }
 
             .elevation-card {
-                background: #1a1a1c;
+                background: #18181B;
                 border: 1px solid #333;
                 border-radius: 12px;
                 padding: 20px 25px 35px 20px;
@@ -178,17 +184,71 @@ export class WGActivityDetail extends LitElement {
                 font-size: 11px;
             }
             .elevation-line {
-                stroke: #4CAF50;
+                stroke: #FFFFFF;
                 stroke-width: 2;
                 fill: none;
             }
             .elevation-fill {
-                fill: rgba(76, 175, 80, 0.05);
+                fill: rgba(255, 255, 255, 0.05);
             }
-            .sync-marker {
-                stroke: #666;
+            .sync-high-vis-group {
+                pointer-events: none;
+            }
+            .sync-line-high-vis {
+                stroke: rgba(255, 255, 255, 0.25);
                 stroke-width: 1;
-                stroke-dasharray: 2;
+            }
+            .sync-dot-overlay {
+                position: absolute;
+                width: 10px;
+                height: 10px;
+                background: #FF007F;
+                border: 2px solid #FFFFFF;
+                border-radius: 50%;
+                transform: translate(-50%, -50%);
+                pointer-events: none;
+                box-shadow: 0 0 12px rgba(255, 0, 127, 0.8);
+                z-index: 20;
+            }
+
+            .map-sync-marker {
+                width: 14px;
+                height: 14px;
+                background: #FFFFFF;
+                border: 3.5px solid #FF007F;
+                border-radius: 50%;
+                box-shadow: 
+                    0 0 0 1.5px rgba(0, 0, 0, 1),
+                    0 0 15px rgba(255, 0, 127, 0.6);
+                position: relative;
+                pointer-events: none;
+            }
+            .map-sync-marker::after {
+                content: '';
+                position: absolute;
+                top: -3px; left: -3px; right: -3px; bottom: -3px;
+                border-radius: 50%;
+                border: 2px solid #FF007F;
+                animation: sync-pulse 1.5s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+            }
+            @keyframes sync-pulse {
+                0% { transform: scale(1); opacity: 1; }
+                100% { transform: scale(3.5); opacity: 0; }
+            }
+
+            .sync-tooltip {
+                position: absolute;
+                background: rgba(26, 26, 28, 0.95);
+                border: 1px solid #444;
+                border-radius: 4px;
+                padding: 4px 8px;
+                color: #fff;
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 11px;
+                pointer-events: none;
+                transform: translate(-50%, -100%);
+                margin-top: -10px;
+                z-index: 25;
             }
         `
     ];
@@ -267,24 +327,36 @@ export class WGActivityDetail extends LitElement {
                 ${this.chartLinePath ? html`
                   <div class="elevation-card">
                     <h3>Elevation Profile</h3>
-                    <svg class="chart-svg" viewBox="0 0 1000 200" preserveAspectRatio="none"
-                         @mousemove="${this._handleChartMove}" @mouseleave="${this._handleChartLeave}">
-                      <line x1="50" y1="50" x2="1000" y2="50" stroke="#222" stroke-width="1" />
-                      <line x1="50" y1="100" x2="1000" y2="100" stroke="#222" stroke-width="1" />
-                      <line x1="50" y1="150" x2="1000" y2="150" stroke="#222" stroke-width="1" />
-                      <line x1="50" y1="10" x2="50" y2="180" class="axis" />
-                      <text x="45" y="15" text-anchor="end" class="axis-label">${Math.round(this.maxElev)}m</text>
-                      <text x="45" y="180" text-anchor="end" class="axis-label">${Math.round(this.minElev)}m</text>
-                      <line x1="50" y1="180" x2="1000" y2="180" class="axis" />
-                      <text x="50" y="198" text-anchor="start" class="axis-label">0 km</text>
-                      <text x="1000" y="198" text-anchor="end" class="axis-label">${this.totalDist} km</text>
-                      <path d="${this.chartAreaPath}" class="elevation-fill" />
-                      <path d="${this.chartLinePath}" class="elevation-line" />
+                    <div style="position: relative;">
+                      <svg class="chart-svg" viewBox="0 0 1000 200" preserveAspectRatio="none"
+                           @mousemove="${this._handleChartMove}" @mouseleave="${this._handleChartLeave}">
+                        <line x1="50" y1="50" x2="1000" y2="50" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+                        <line x1="50" y1="100" x2="1000" y2="100" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+                        <line x1="50" y1="150" x2="1000" y2="150" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+                        <line x1="50" y1="10" x2="50" y2="180" class="axis" />
+                        <text x="45" y="15" text-anchor="end" class="axis-label">${Math.round(this.maxElev)}m</text>
+                        <text x="45" y="180" text-anchor="end" class="axis-label">${Math.round(this.minElev)}m</text>
+                        <line x1="50" y1="180" x2="1000" y2="180" class="axis" />
+                        <text x="50" y="198" text-anchor="start" class="axis-label">0 km</text>
+                        <text x="1000" y="198" text-anchor="end" class="axis-label">${this.totalDist} km</text>
+                        <path d="${this.chartAreaPath}" class="elevation-fill" />
+                        <path d="${this.chartLinePath}" class="elevation-line" />
+                        ${this.showMarker ? svg`
+                          <g class="sync-high-vis-group">
+                            <line x1="${this.markerX}" y1="10" x2="${this.markerX}" y2="180" class="sync-line-high-vis" />
+                          </g>
+                        ` : ''}
+                      </svg>
                       ${this.showMarker ? html`
-                        <line x1="${this.markerX}" y1="10" x2="${this.markerX}" y2="180" class="sync-marker" />
-                        <circle cx="${this.markerX}" cy="${this.markerY}" r="4" fill="#4CAF50" />
+                        <div class="sync-dot-overlay" 
+                             style="left: ${this.markerX / 10}%; top: ${this.markerY / 2}%;">
+                        </div>
+                        <div class="sync-tooltip"
+                             style="left: ${this.markerX / 10}%; top: ${this.markerY / 2}%;">
+                          ${Math.round(this.markerAlt)}m | ${(this.markerDist / 1000).toFixed(2)}km
+                        </div>
                       ` : ''}
-                    </svg>
+                    </div>
                   </div>
                 ` : ''}
 
@@ -415,7 +487,8 @@ export class WGActivityDetail extends LitElement {
                 color: '#000000',
                 weight: 9,
                 opacity: 0.4,
-                lineJoin: 'round'
+                lineJoin: 'round',
+                interactive: false
             }).addTo(this.map);
 
             // Add track polyline
@@ -423,8 +496,29 @@ export class WGActivityDetail extends LitElement {
                 color: '#00d2ff',
                 weight: 4,
                 opacity: 1,
-                lineJoin: 'round'
+                lineJoin: 'round',
+                interactive: false // Let hit area handle events
             }).addTo(this.map);
+
+            // Add transparent hit-area for better hover detection
+            const hitArea = L.polyline(coordinates, {
+                color: 'transparent',
+                weight: 50,
+                opacity: 0,
+                interactive: true
+            }).addTo(this.map);
+
+            hitArea.on('mousemove', (e: L.LeafletMouseEvent) => {
+                this._syncChartFromMap(e.latlng.lat, e.latlng.lng);
+            });
+            hitArea.on('mouseout', () => {
+                this.showMarker = false;
+                this.requestUpdate();
+                if (this.mapMarker && this.map) {
+                    this.map.removeLayer(this.mapMarker);
+                    this.mapMarker = null;
+                }
+            });
 
             // Add start/end markers
             L.circleMarker(coordinates[0], {
@@ -433,7 +527,8 @@ export class WGActivityDetail extends LitElement {
                 color: '#fff',
                 weight: 2,
                 opacity: 1,
-                fillOpacity: 1
+                fillOpacity: 1,
+                interactive: false
             }).addTo(this.map);
 
             L.circleMarker(coordinates[coordinates.length - 1], {
@@ -442,7 +537,8 @@ export class WGActivityDetail extends LitElement {
                 color: '#fff',
                 weight: 2,
                 opacity: 1,
-                fillOpacity: 1
+                fillOpacity: 1,
+                interactive: false
             }).addTo(this.map);
 
             // Fit bounds
@@ -535,17 +631,20 @@ export class WGActivityDetail extends LitElement {
         
         this.markerX = mapX(getXVal(pt));
         this.markerY = mapY(pt.alt!);
+        this.markerAlt = pt.alt!;
+        this.markerDist = getXVal(pt);
         this.showMarker = true;
+        this.requestUpdate();
 
         if (this.map) {
             if (!this.mapMarker) {
-                this.mapMarker = L.circleMarker([pt.lat, pt.lng], {
-                    radius: 5,
-                    fillColor: '#2196F3',
-                    color: '#fff',
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 1
+                this.mapMarker = L.marker([pt.lat, pt.lng], {
+                    interactive: false,
+                    icon: L.divIcon({
+                        className: 'map-sync-marker',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
                 }).addTo(this.map);
             } else {
                 this.mapMarker.setLatLng([pt.lat, pt.lng]);
@@ -555,9 +654,63 @@ export class WGActivityDetail extends LitElement {
 
     private _handleChartLeave() {
         this.showMarker = false;
+        this.requestUpdate();
         if (this.map && this.mapMarker) {
             this.map.removeLayer(this.mapMarker);
             this.mapMarker = null;
+        }
+    }
+
+    private _syncChartFromMap(lat: number, lng: number) {
+        if (!this.trackData || this.trackData.length === 0) return;
+        
+        let minDiff = Infinity;
+        let closestPt: any = null;
+        this.trackData.forEach(pt => {
+            if (pt.alt === undefined || (pt.distance === undefined && pt.timeOffset === undefined)) return;
+            // Simple Euclidean distance in degrees is usually sufficient for picking a point
+            const diff = Math.pow(pt.lat - lat, 2) + Math.pow(pt.lng - lng, 2);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestPt = pt;
+            }
+        });
+        
+        if (closestPt) {
+            const validPoints = this.trackData.filter(pt => pt.alt !== undefined && (pt.distance !== undefined || pt.timeOffset !== undefined));
+            const getXVal = (pt: any) => pt.distance !== undefined ? pt.distance : pt.timeOffset!;
+            const maxX = getXVal(validPoints[validPoints.length - 1]);
+            const minAlt = Math.min(...validPoints.map(p => p.alt!));
+            const maxAlt = Math.max(...validPoints.map(p => p.alt!));
+            
+            const svgWidth = 950;
+            const mapX = (x: number) => maxX > 0 ? 50 + (x / maxX) * svgWidth : 50;
+            const mapY = (a: number) => {
+                const range = maxAlt - minAlt || 1;
+                return 180 - ((a - minAlt) / range) * 170;
+            };
+            
+            this.markerX = mapX(getXVal(closestPt));
+            this.markerY = mapY(closestPt.alt!);
+            this.markerAlt = closestPt.alt!;
+            this.markerDist = getXVal(closestPt);
+            this.showMarker = true;
+            this.requestUpdate();
+
+            if (this.map) {
+                if (!this.mapMarker) {
+                    this.mapMarker = L.marker([closestPt.lat, closestPt.lng], {
+                        interactive: false,
+                        icon: L.divIcon({
+                            className: 'map-sync-marker',
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })
+                    }).addTo(this.map);
+                } else {
+                    this.mapMarker.setLatLng([closestPt.lat, closestPt.lng]);
+                }
+            }
         }
     }
 }
