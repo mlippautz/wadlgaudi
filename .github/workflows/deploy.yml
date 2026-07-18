@@ -1,0 +1,38 @@
+name: Deploy to GitHub Pages
+on:
+  push:
+    branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Create config.js from secrets
+        run: |
+          echo "window.DRIVE_APP_CONFIG = { API_KEY: '${{ secrets.GOOGLE_API_KEY }}', CLIENT_ID: '${{ secrets.GOOGLE_CLIENT_ID }}' };" > public/config.js
+      - name: Install and Build
+        run: |
+          pnpm install
+          pnpm run build
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist  # Change this to your build folder (dist, build, out)
+

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wadlgaudi - Drive Sync</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  
+  <!-- Configuration -->
+  <script src="config.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <h1 class="brand-title">Wadlgaudi</h1>
+      <div id="connection-status" class="connection-status">
+        <span class="status-dot disconnected"></span>
+        <span id="status-text" class="status-text">Disconnected</span>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <!-- Missing Credentials State -->
+      <div id="state-credentials-missing" class="state-view">
+        <p class="error-text">API credentials missing. Please configure <code>config.js</code>.</p>
+      </div>
+
+      <!-- Auth State -->
+      <div id="state-connect-prompt" class="state-view hidden">
+        <button id="btn-auth" class="btn btn-primary">Connect Google Drive</button>
+      </div>
+
+      <!-- Folder Selection State -->
+      <div id="state-folder-prompt" class="state-view hidden">
+        <button id="btn-picker" class="btn btn-accent">Select Drive Folder</button>
+      </div>
+
+      <!-- Loading State -->
+      <div id="state-loading" class="state-view hidden">
+        <p class="loading-text">Syncing...</p>
+      </div>
+
+      <!-- Dashboard View (Folder and File List) -->
+      <div id="dashboard-view" class="dashboard-view hidden">
+        <div class="dashboard-header">
+          <div class="folder-info">
+            <span class="folder-label">Folder:</span>
+            <span id="selected-folder-name" class="folder-name">-</span>
+          </div>
+          <div class="action-buttons">
+            <button id="btn-change-folder" class="btn-link">Change Folder</button>
+            <span class="divider">|</span>
+            <button id="btn-signout" class="btn-link">Disconnect</button>
+          </div>
+        </div>
+
+        <!-- Map Container -->
+        <div id="map" class="map-container"></div>
+
+        <!-- Files List -->
+        <ul id="files-list" class="files-list">
+          <!-- Populated dynamically -->
+        </ul>
+      </div>
+    </main>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Main JS -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>

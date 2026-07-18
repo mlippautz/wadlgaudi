@@ -1,0 +1,11 @@
+# Google API secrets (DO NOT COMMIT)
+public/config.js
+
+# Node modules
+node_modules/
+
+# Logs and local dev files
+*.log
+.DS_Store
+dist/
+dev.log
