@@ -110,28 +110,43 @@ function onAuthSuccess() {
 
 // 3. UI Status Controllers
 function updateConnectionStatus(isConnected) {
-  const dot = connectionStatus.querySelector('.status-dot');
-  dot.className = 'status-dot';
+  const btnAuth = document.getElementById('btn-auth');
+  const btnSignout = document.getElementById('btn-signout');
+  const topFolderControls = document.getElementById('top-folder-controls');
+  
+  // Hide status indicator in both states as the action buttons provide sufficient context
+  if (connectionStatus) connectionStatus.classList.add('hidden');
+  
   if (isConnected) {
-    dot.classList.add('connected');
-    statusText.textContent = 'Connected';
+    if (btnAuth) btnAuth.classList.add('hidden');
+    if (btnSignout) btnSignout.classList.remove('hidden');
+    if (topFolderControls) topFolderControls.classList.remove('hidden');
   } else {
-    dot.classList.add('disconnected');
-    statusText.textContent = 'Disconnected';
+    if (btnAuth) btnAuth.classList.remove('hidden');
+    if (btnSignout) btnSignout.classList.add('hidden');
+    if (topFolderControls) topFolderControls.classList.add('hidden');
   }
 }
 
 function setLoadingStatus(msg) {
+  if (connectionStatus) connectionStatus.classList.remove('hidden');
   const dot = connectionStatus.querySelector('.status-dot');
   dot.className = 'status-dot loading';
   statusText.textContent = msg;
 }
 
 function updateFolderDisplay() {
+  const topFolderInfo = document.getElementById('top-folder-info');
+  const btnPicker = document.getElementById('btn-picker');
+  
   if (currentFolderId && currentFolderName) {
     selectedFolderName.textContent = currentFolderName;
+    if (topFolderInfo) topFolderInfo.classList.remove('hidden');
+    if (btnPicker) btnPicker.classList.add('hidden');
   } else {
     selectedFolderName.textContent = '-';
+    if (topFolderInfo) topFolderInfo.classList.add('hidden');
+    if (btnPicker) btnPicker.classList.remove('hidden');
   }
 }
 
