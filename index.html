@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Wadlgaudi - Drive Sync</title>
+  <title>Wadlgaudi - Activity Analyzer</title>
   
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,61 +17,88 @@
   
   <!-- Configuration -->
   <script src="config.js"></script>
-  <script type="module" crossorigin src="/wadlgaudi/assets/index-CYHfpX4r.js"></script>
-  <link rel="stylesheet" crossorigin href="/wadlgaudi/assets/index-CgsdQ7ZR.css">
+  <script type="module" crossorigin src="/wadlgaudi/assets/index-idBS2syq.js"></script>
+  <link rel="stylesheet" crossorigin href="/wadlgaudi/assets/index-BuKKtr1a.css">
 </head>
 <body>
   <div class="app-container">
     <header class="app-header">
-      <h1 class="brand-title">Wadlgaudi</h1>
-      <div id="connection-status" class="connection-status">
-        <span class="status-dot disconnected"></span>
-        <span id="status-text" class="status-text">Disconnected</span>
+      <div class="header-brand">
+        <h1 class="brand-title">Wadlgaudi</h1>
+      </div>
+      <div class="header-controls">
+        <div id="connection-status" class="connection-status">
+          <span class="status-dot disconnected"></span>
+          <span id="status-text" class="status-text">Disconnected</span>
+        </div>
+
+        <div class="controls-actions">
+          <!-- Auth button (visible when disconnected) -->
+          <button id="btn-auth" class="btn btn-sm btn-primary">Connect Drive</button>
+          
+          <!-- Folder Selection controls (visible when connected) -->
+          <div id="top-folder-controls" class="folder-controls-group hidden">
+            <!-- Select folder trigger -->
+            <button id="btn-picker" class="btn btn-sm btn-accent">Select Drive Folder</button>
+            
+            <!-- Folder info and change button -->
+            <div id="top-folder-info" class="top-folder-info hidden">
+              <span class="folder-label">Folder:</span>
+              <span id="selected-folder-name" class="folder-name">-</span>
+              <button id="btn-change-folder" class="btn-change" title="Change Folder">Change</button>
+            </div>
+          </div>
+
+          <!-- Disconnect button (visible when connected) -->
+          <button id="btn-signout" class="btn btn-sm btn-outline hidden">Disconnect</button>
+        </div>
       </div>
     </header>
 
     <main class="app-main">
       <!-- Missing Credentials State -->
       <div id="state-credentials-missing" class="state-view">
+        <div class="prompt-icon">⚠️</div>
+        <h2 class="prompt-title">Configuration Required</h2>
         <p class="error-text">API credentials missing. Please configure <code>config.js</code>.</p>
       </div>
 
-      <!-- Auth State -->
+      <!-- Auth State Placeholder -->
       <div id="state-connect-prompt" class="state-view hidden">
-        <button id="btn-auth" class="btn btn-primary">Connect Google Drive</button>
+        <h2 class="prompt-title">Connect Google Drive</h2>
+        <p class="prompt-desc">Connect your Google Drive in the top bar to load and visualize your activity files.</p>
       </div>
 
-      <!-- Folder Selection State -->
+      <!-- Folder Selection State Placeholder -->
       <div id="state-folder-prompt" class="state-view hidden">
-        <button id="btn-picker" class="btn btn-accent">Select Drive Folder</button>
+        <h2 class="prompt-title">Select Folder</h2>
+        <p class="prompt-desc">Click "Select Drive Folder" in the top bar to load and display your activity files.</p>
       </div>
 
       <!-- Loading State -->
       <div id="state-loading" class="state-view hidden">
-        <p class="loading-text">Syncing...</p>
+        <div class="spinner"></div>
+        <p class="loading-text">Loading activities from Google Drive...</p>
       </div>
 
       <!-- Dashboard View (Folder and File List) -->
       <div id="dashboard-view" class="dashboard-view hidden">
-        <div class="dashboard-header">
-          <div class="folder-info">
-            <span class="folder-label">Folder:</span>
-            <span id="selected-folder-name" class="folder-name">-</span>
-          </div>
-          <div class="action-buttons">
-            <button id="btn-change-folder" class="btn-link">Change Folder</button>
-            <span class="divider">|</span>
-            <button id="btn-signout" class="btn-link">Disconnect</button>
-          </div>
+        <div class="dashboard-content">
+          <!-- Files List Sidebar -->
+          <aside class="sidebar">
+            <h3 class="sidebar-title">Activities</h3>
+            <div class="files-list-container">
+              <ul id="files-list" class="files-list">
+                <!-- Populated dynamically -->
+              </ul>
+            </div>
+          </aside>
+
+          <!-- Map View Main Area -->
+          <section class="map-view">
+            <div id="map" class="map-container"></div>
+          </section>
         </div>
-
-        <!-- Map Container -->
-        <div id="map" class="map-container"></div>
-
-        <!-- Files List -->
-        <ul id="files-list" class="files-list">
-          <!-- Populated dynamically -->
-        </ul>
       </div>
     </main>
   </div>
