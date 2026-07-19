@@ -460,3 +460,212 @@ body {
     max-width: 350px;
   }
 }
+
+/* Custom Map Selector Control styles */
+.map-selector-control {
+  position: relative;
+  margin-top: 10px;
+  margin-right: 10px;
+}
+
+.map-selector-toggle-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 4px;
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+  transition: all 0.2s ease;
+}
+
+.map-selector-toggle-btn:hover,
+.map-selector-toggle-btn.active {
+  background: #111111;
+  border-color: var(--text-color);
+}
+
+.map-selector-panel {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 260px;
+  background: rgba(10, 10, 10, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.map-selector-panel.hidden {
+  display: none !important;
+}
+
+.map-selector-header h4 {
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-color);
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+
+.map-selector-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.map-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.map-selector-card {
+  font-family: var(--font-sans);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.5rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.map-selector-card:hover {
+  border-color: var(--border-color-hover);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-color);
+}
+
+.map-selector-card.active {
+  border-color: var(--text-color);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-color);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+}
+
+.map-selector-card-indicator {
+  height: 3px;
+  width: 16px;
+  background: transparent;
+  border-radius: 1px;
+  transition: background-color 0.2s ease;
+}
+
+.map-selector-card.active .map-selector-card-indicator {
+  background: #39FF14;
+}
+
+.map-selector-card-label {
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.map-selector-select {
+  font-family: var(--font-sans);
+  background: #111111;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  color: var(--text-color);
+  font-size: 0.8rem;
+  cursor: pointer;
+  outline: none;
+  width: 100%;
+}
+
+.map-selector-select:focus {
+  border-color: var(--border-color-hover);
+}
+
+.map-selector-overlays {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.map-selector-overlay-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.map-selector-overlay-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.map-selector-overlay-row:hover .map-selector-overlay-label {
+  color: var(--text-color);
+}
+
+/* Custom styled switch slider */
+.map-selector-switch-container {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+}
+
+.map-selector-switch-checkbox {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.map-selector-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border-color);
+  transition: .2s;
+  border-radius: 9px;
+}
+
+.map-selector-switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 12px;
+  width: 12px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text-muted);
+  transition: .2s;
+  border-radius: 50%;
+}
+
+.map-selector-switch-checkbox:checked + .map-selector-switch-slider {
+  background-color: #00F3FF;
+}
+
+.map-selector-switch-checkbox:checked + .map-selector-switch-slider:before {
+  transform: translateX(14px);
+  background-color: #ffffff;
+}
+
