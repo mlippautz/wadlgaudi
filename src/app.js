@@ -22,8 +22,6 @@ const btnAuth = document.getElementById('btn-auth');
 const btnSignout = document.getElementById('btn-signout');
 const btnPicker = document.getElementById('btn-picker');
 const btnChangeFolder = document.getElementById('btn-change-folder');
-const connectionStatus = document.getElementById('connection-status');
-const statusText = document.getElementById('status-text');
 const selectedFolderName = document.getElementById('selected-folder-name');
 const filesList = document.getElementById('files-list');
 
@@ -114,25 +112,31 @@ function updateConnectionStatus(isConnected) {
   const btnSignout = document.getElementById('btn-signout');
   const topFolderControls = document.getElementById('top-folder-controls');
   
-  // Hide status indicator in both states as the action buttons provide sufficient context
-  if (connectionStatus) connectionStatus.classList.add('hidden');
-  
   if (isConnected) {
-    if (btnAuth) btnAuth.classList.add('hidden');
+    if (btnAuth) {
+      btnAuth.classList.add('hidden');
+      btnAuth.disabled = false;
+      btnAuth.textContent = 'Connect Drive';
+    }
     if (btnSignout) btnSignout.classList.remove('hidden');
     if (topFolderControls) topFolderControls.classList.remove('hidden');
   } else {
-    if (btnAuth) btnAuth.classList.remove('hidden');
+    if (btnAuth) {
+      btnAuth.classList.remove('hidden');
+      btnAuth.disabled = false;
+      btnAuth.textContent = 'Connect Drive';
+    }
     if (btnSignout) btnSignout.classList.add('hidden');
     if (topFolderControls) topFolderControls.classList.add('hidden');
   }
 }
 
 function setLoadingStatus(msg) {
-  if (connectionStatus) connectionStatus.classList.remove('hidden');
-  const dot = connectionStatus.querySelector('.status-dot');
-  dot.className = 'status-dot loading';
-  statusText.textContent = msg;
+  const btnAuth = document.getElementById('btn-auth');
+  if (btnAuth) {
+    btnAuth.textContent = msg;
+    btnAuth.disabled = true;
+  }
 }
 
 function updateFolderDisplay() {

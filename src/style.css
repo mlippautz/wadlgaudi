@@ -79,38 +79,6 @@ body {
   flex-wrap: wrap;
 }
 
-.connection-status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--text-muted);
-}
-
-.status-dot.connected {
-  background-color: #00ff66;
-  box-shadow: 0 0 6px #00ff66;
-}
-
-.status-dot.disconnected {
-  background-color: #ff3366;
-}
-
-.status-dot.loading {
-  background-color: #ffcc00;
-  animation: pulse 1.5s infinite ease-in-out;
-}
-
 .controls-actions {
   display: flex;
   align-items: center;
