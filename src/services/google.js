@@ -171,3 +171,36 @@ export async function loadFolderContents(folderId) {
 
   return response.result.files || [];
 }
+
+/**
+ * Checks if a file is a supported activity format.
+ * @param {object} file - Google Drive file object.
+ * @returns {boolean} True if the file is a supported activity type.
+ */
+export function isSupportedActivity(file) {
+  const name = file.name.toLowerCase();
+  return name.endsWith('.fit');
+  // Easy to extend: || name.endsWith('.gpx') || name.endsWith('.tcx')
+}
+
+/**
+ * Recursively walks a Google Drive folder and collects all supported activity files.
+ * Subfolders are traversed, non-activity files are ignored.
+ * @param {string} folderId - The root folder ID to walk.
+ * @returns {Promise<Array>} Flat list of supported activity file objects from all levels.
+ */
+export async function loadAllActivities(folderId) {
+  const files = await loadFolderContents(folderId);
+  const activities = [];
+
+  for (const file of files) {
+    if (file.mimeType === 'application/vnd.google-apps.folder') {
+      const nested = await loadAllActivities(file.id);
+      activities.push(...nested);
+    } else if (isSupportedActivity(file)) {
+      activities.push(file);
+    }
+  }
+
+  return activities;
+}

@@ -29,7 +29,7 @@ export async function downloadFileContent(fileId) {
 /**
  * Parses Garmin FIT file binary data to extract session distance and route GPS coordinates.
  * @param {ArrayBuffer} arrayBuffer - The raw FIT binary data.
- * @returns {Promise<{distanceMeters: number|null, coordinates: Array<[number, number]>}|null>}
+ * @returns {Promise<{distanceMeters: number|null, coordinates: Array<[number, number]>, startTime: Date|null, sport: string|null}|null>}
  */
 export function parseFitData(arrayBuffer) {
   return new Promise((resolve) => {
@@ -68,7 +68,15 @@ export function parseFitData(arrayBuffer) {
           });
         }
 
-        resolve({ distanceMeters, coordinates });
+        // Extract activity date and sport type from session
+        const startTime = (data.sessions && data.sessions.length > 0 && data.sessions[0].start_time)
+          ? new Date(data.sessions[0].start_time)
+          : null;
+        const sport = (data.sessions && data.sessions.length > 0)
+          ? (data.sessions[0].sport || null)
+          : null;
+
+        resolve({ distanceMeters, coordinates, startTime, sport });
       }
     });
   });

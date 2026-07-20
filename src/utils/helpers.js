@@ -58,3 +58,59 @@ export function getRecordCoordinates(record) {
   }
   return null;
 }
+
+/**
+ * Formats a distance in meters to a human-readable km string.
+ * @param {number|null} meters - Distance in meters.
+ * @returns {string} Formatted string like "142.35 km" or "-".
+ */
+export function formatDistance(meters) {
+  if (meters === null || meters === undefined) return '-';
+  return (meters / 1000).toFixed(2) + ' km';
+}
+
+/**
+ * Formats a Date object into a month/year header string.
+ * @param {Date} date - The date to format.
+ * @returns {string} e.g. "July 2026"
+ */
+export function formatMonth(date) {
+  if (!date || !(date instanceof Date)) return 'Unknown';
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+/**
+ * Simple case-insensitive substring match.
+ * @param {string} query - The search query.
+ * @param {string} text - The text to search in.
+ * @returns {boolean} True if query is a substring of text (case-insensitive).
+ */
+export function matchesFuzzy(query, text) {
+  if (!query || !text) return false;
+  return text.toLowerCase().includes(query.toLowerCase());
+}
+
+/**
+ * Parses a free-form search query to extract date filters and text filters.
+ * Date patterns like "2026", "2026-07", or "2026-07-12" are detected and separated from text queries.
+ * @param {string} query - The raw search input.
+ * @returns {{ date: string|null, text: string|null }} Parsed filter components.
+ */
+export function parseSearchQuery(query) {
+  if (!query || !query.trim()) return { date: null, text: null };
+  
+  const trimmed = query.trim();
+  let date = null;
+  let remaining = trimmed;
+  
+  // Match date patterns: YYYY, YYYY-MM, or YYYY-MM-DD
+  const dateMatch = trimmed.match(/\b(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/);
+  if (dateMatch) {
+    date = dateMatch[1];
+    // Remove the date part from the remaining text
+    remaining = trimmed.replace(dateMatch[0], '').trim();
+  }
+  
+  const text = remaining.length > 0 ? remaining : null;
+  return { date, text };
+}

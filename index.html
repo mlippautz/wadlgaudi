@@ -81,6 +81,15 @@
           <!-- Files List Sidebar -->
           <aside class="sidebar">
             <h3 class="sidebar-title">Activities</h3>
+            <div class="sidebar-controls">
+              <input type="text" id="search-input" class="search-input" placeholder="Search activities..." autocomplete="off" spellcheck="false">
+              <button id="btn-this-year" class="btn-shortcut" type="button">Year</button>
+              <button id="btn-this-month" class="btn-shortcut" type="button">Month</button>
+            </div>
+            <div class="sidebar-info">
+              <span id="filter-status" class="filter-status"></span>
+              <span id="km-aggregate" class="km-aggregate"></span>
+            </div>
             <div class="files-list-container">
               <ul id="files-list" class="files-list">
                 <!-- Populated dynamically -->
