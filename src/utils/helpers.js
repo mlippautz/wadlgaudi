@@ -91,26 +91,35 @@ export function matchesFuzzy(query, text) {
 }
 
 /**
- * Parses a free-form search query to extract date filters and text filters.
+ * Parses a free-form search query to extract ID, date filters, and text filters.
  * Date patterns like "2026", "2026-07", or "2026-07-12" are detected and separated from text queries.
  * @param {string} query - The raw search input.
- * @returns {{ date: string|null, text: string|null }} Parsed filter components.
+ * @returns {{ id: string|null, date: string|null, text: string|null }} Parsed filter components.
  */
 export function parseSearchQuery(query) {
-  if (!query || !query.trim()) return { date: null, text: null };
+  if (!query || !query.trim()) return { id: null, date: null, text: null };
   
   const trimmed = query.trim();
+  let id = null;
   let date = null;
   let remaining = trimmed;
   
-  // Match date patterns: YYYY, YYYY-MM, or YYYY-MM-DD
-  const dateMatch = trimmed.match(/\b(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/);
+  // 1. Match and extract ID pattern: id=123, id:123, id="123", id:'123'
+  const idMatch = remaining.match(/\bid[=:]\s*["']?([A-Za-z0-9_-]+)["']?/i);
+  if (idMatch) {
+    id = idMatch[1];
+    // Remove the match and clean up extra whitespace
+    remaining = remaining.replace(idMatch[0], '').replace(/\s+/g, ' ').trim();
+  }
+
+  // 2. Match date patterns: YYYY, YYYY-MM, or YYYY-MM-DD
+  const dateMatch = remaining.match(/\b(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/);
   if (dateMatch) {
     date = dateMatch[1];
     // Remove the date part from the remaining text
-    remaining = trimmed.replace(dateMatch[0], '').trim();
+    remaining = remaining.replace(dateMatch[0], '').replace(/\s+/g, ' ').trim();
   }
   
   const text = remaining.length > 0 ? remaining : null;
-  return { date, text };
+  return { id, date, text };
 }

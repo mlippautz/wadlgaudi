@@ -10,12 +10,12 @@ import {
   isSdkLoaded
 } from './services/google.js';
 import { downloadFileContent, parseFitData } from './services/fit.js';
-import { initMap, clearPaths, drawRoute, invalidateMapSize } from './services/map.js';
+import { initMap, clearPaths, drawRoute, invalidateMapSize, fitMapToRoutes } from './services/map.js';
 
 // State Variables
 let allActivities = [];       // Enriched activity objects (Drive metadata + parsed FIT data)
 let filteredActivities = [];   // Currently displayed subset after filtering
-let activeFilter = { date: null, text: null };  // Parsed filter state
+let activeFilter = { id: null, date: null, text: null };  // Parsed filter state
 let currentFolderId = localStorage.getItem('drive_sync_folder_id') || null;
 let currentFolderName = localStorage.getItem('drive_sync_folder_name') || null;
 
@@ -61,6 +61,16 @@ function setupEventListeners() {
   // Shortcut buttons
   if (btnThisYear) btnThisYear.addEventListener('click', onThisYearClick);
   if (btnThisMonth) btnThisMonth.addEventListener('click', onThisMonthClick);
+
+  // Clear selection/search on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (searchInput && searchInput.value) {
+        searchInput.value = '';
+        onSearchChanged('');
+      }
+    }
+  });
 }
 
 // 1. Check Config and Trigger SDK Loads
@@ -116,7 +126,7 @@ function executeSignoutFlow() {
   currentFolderName = null;
   allActivities = [];
   filteredActivities = [];
-  activeFilter = { date: null, text: null };
+  activeFilter = { id: null, date: null, text: null };
   if (searchInput) searchInput.value = '';
   
   updateConnectionStatus(false);
@@ -303,7 +313,7 @@ async function fetchAndDisplayActivities(folderId) {
     allActivities = enriched;
 
     // Reset filter on new folder load
-    activeFilter = { date: null, text: null };
+    activeFilter = { id: null, date: null, text: null };
     if (searchInput) searchInput.value = '';
     updateShortcutButtons();
 
@@ -375,6 +385,20 @@ function onSearchChanged(value) {
 }
 
 /**
+ * Toggles single activity selection. Updates search input text to id:<id>.
+ */
+function toggleSelectActivity(id) {
+  if (activeFilter.id === id) {
+    if (searchInput) searchInput.value = '';
+    onSearchChanged('');
+  } else {
+    const query = `id:${id}`;
+    if (searchInput) searchInput.value = query;
+    onSearchChanged(query);
+  }
+}
+
+/**
  * "This Year" shortcut — toggles date filter for current year.
  */
 function onThisYearClick() {
@@ -384,11 +408,11 @@ function onThisYearClick() {
   if (activeFilter.date === yearStr && !activeFilter.text) {
     // Toggle off
     if (searchInput) searchInput.value = '';
-    activeFilter = { date: null, text: null };
+    activeFilter = { id: null, date: null, text: null };
   } else {
     // Set year filter
     if (searchInput) searchInput.value = yearStr;
-    activeFilter = { date: yearStr, text: null };
+    activeFilter = { id: null, date: yearStr, text: null };
   }
   updateShortcutButtons();
   applyFiltersAndRender();
@@ -404,11 +428,11 @@ function onThisMonthClick() {
   if (activeFilter.date === monthStr && !activeFilter.text) {
     // Toggle off
     if (searchInput) searchInput.value = '';
-    activeFilter = { date: null, text: null };
+    activeFilter = { id: null, date: null, text: null };
   } else {
     // Set month filter
     if (searchInput) searchInput.value = monthStr;
-    activeFilter = { date: monthStr, text: null };
+    activeFilter = { id: null, date: monthStr, text: null };
   }
   updateShortcutButtons();
   applyFiltersAndRender();
@@ -423,10 +447,10 @@ function updateShortcutButtons() {
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   if (btnThisYear) {
-    btnThisYear.classList.toggle('active', activeFilter.date === yearStr && !activeFilter.text);
+    btnThisYear.classList.toggle('active', activeFilter.date === yearStr && !activeFilter.text && !activeFilter.id);
   }
   if (btnThisMonth) {
-    btnThisMonth.classList.toggle('active', activeFilter.date === monthStr && !activeFilter.text);
+    btnThisMonth.classList.toggle('active', activeFilter.date === monthStr && !activeFilter.text && !activeFilter.id);
   }
 }
 
@@ -435,6 +459,11 @@ function updateShortcutButtons() {
  */
 function applyFiltersAndRender() {
   filteredActivities = allActivities.filter(activity => {
+    // ID filter
+    if (activeFilter.id) {
+      if (activity.id !== activeFilter.id) return false;
+    }
+
     // Date filter
     if (activeFilter.date) {
       if (activeFilter.date.length === 10) {
@@ -480,6 +509,13 @@ function renderActivities() {
     return;
   }
 
+  // Manage selection class on parent list
+  if (activeFilter.id) {
+    filesList.classList.add('has-selection');
+  } else {
+    filesList.classList.remove('has-selection');
+  }
+
   // Group activities by monthKey
   let currentMonth = null;
 
@@ -500,15 +536,33 @@ function renderActivities() {
     // Render activity item
     const li = document.createElement('li');
     li.className = 'file-item';
+    if (activeFilter.id === activity.id) {
+      li.classList.add('selected');
+    }
 
     const distText = formatDistance(activity.distanceMeters);
 
     li.innerHTML = `
-      <a href="${activity.webViewLink}" target="_blank" class="file-name-link">${escapeHtml(activity.name)}</a>
+      <span class="file-name-btn" role="button" tabindex="0">${escapeHtml(activity.name)}</span>
       <div class="file-meta">
+        <a href="${activity.webViewLink}" target="_blank" class="download-link" title="Open in Google Drive">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
         <span class="file-size">${distText}</span>
       </div>
     `;
+
+    li.addEventListener('click', (e) => {
+      if (e.target.closest('.download-link')) {
+        return;
+      }
+      toggleSelectActivity(activity.id);
+    });
+
     filesList.appendChild(li);
   });
 }
@@ -520,6 +574,14 @@ function updateFilterStatus() {
   if (!filterStatusEl) return;
 
   const parts = [];
+  if (activeFilter.id) {
+    const selected = allActivities.find(a => a.id === activeFilter.id);
+    if (selected) {
+      parts.push(`activity="${selected.name}"`);
+    } else {
+      parts.push(`id=${activeFilter.id}`);
+    }
+  }
   if (activeFilter.date) {
     parts.push(`date=${activeFilter.date}`);
   }
@@ -561,4 +623,5 @@ function renderMapRoutes() {
       drawRoute(activity.coordinates, activity.distanceMeters);
     }
   });
+  fitMapToRoutes();
 }

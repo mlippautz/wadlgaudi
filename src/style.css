@@ -323,7 +323,8 @@ body {
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--border-color);
   font-size: 0.9rem;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, opacity 0.15s ease;
+  cursor: pointer;
 }
 
 .file-item:last-child {
@@ -334,18 +335,17 @@ body {
   background: #080808;
 }
 
-.file-name-link {
+.file-name-btn {
   color: var(--text-color);
-  text-decoration: none;
   font-weight: 400;
-  transition: color 0.15s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 180px; /* Limits filename length in sidebar */
+  max-width: 180px;
+  transition: color 0.15s ease;
 }
 
-.file-name-link:hover {
+.file-name-btn:hover {
   color: var(--text-muted);
 }
 
@@ -359,6 +359,32 @@ body {
 
 .file-size {
   font-variant-numeric: tabular-nums;
+}
+
+/* Selected Activity Highlight */
+.file-item.selected {
+  background: rgba(255, 255, 255, 0.06);
+  border-left: 3px solid #00F3FF;
+  padding-left: 1.0625rem; /* Adjust padding-left to keep layout aligned (1.25rem - 3px) */
+}
+
+/* Dim other items when selection is active */
+.files-list.has-selection .file-item:not(.selected) {
+  opacity: 0.55;
+}
+
+/* Inline Download/Drive Link */
+.download-link {
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.download-link:hover {
+  color: var(--text-color);
+  transform: scale(1.1);
 }
 
 .divider {

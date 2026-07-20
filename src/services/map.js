@@ -363,7 +363,18 @@ export function drawRoute(coordinates, distanceMeters) {
     const distanceKm = (distanceMeters / 1000).toFixed(2);
     polyline.bindTooltip(`${distanceKm} km`, { sticky: true });
   }
+}
 
-  // Adjust map camera bounds to fit all coordinate paths
-  map.fitBounds(pathGroup.getBounds(), { padding: [40, 40] });
+/**
+ * Fits the map view to the bounding box of all drawn routes.
+ * Constraints prevent excessive zoom on short tracks or single-point paths.
+ */
+export function fitMapToRoutes() {
+  if (!map || !pathGroup || pathGroup.getLayers().length === 0) return;
+  
+  map.fitBounds(pathGroup.getBounds(), {
+    padding: [40, 40],
+    maxZoom: 15,
+    animate: true
+  });
 }
