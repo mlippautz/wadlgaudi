@@ -80,7 +80,6 @@ export function checkInitialization() {
 
   if (savedToken && tokenExpiry && parseInt(tokenExpiry) > now) {
     accessToken = savedToken;
-    gapi.client.setToken({ access_token: accessToken });
     return true;
   }
   return false;
@@ -106,7 +105,6 @@ export function handleAuth({ onSuccess, onFailure, onStatus }) {
     }
 
     accessToken = resp.access_token;
-    gapi.client.setToken({ access_token: accessToken });
     
     // Store token with 55-minute expiry window
     const expiryTime = Date.now() + 55 * 60 * 1000;
