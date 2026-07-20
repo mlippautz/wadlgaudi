@@ -27,8 +27,10 @@ const btnChangeFolder = document.getElementById('btn-change-folder');
 const selectedFolderName = document.getElementById('selected-folder-name');
 const filesList = document.getElementById('files-list');
 const searchInput = document.getElementById('search-input');
+const btnClearSearch = document.getElementById('btn-clear-search');
 const btnThisYear = document.getElementById('btn-this-year');
 const btnThisMonth = document.getElementById('btn-this-month');
+const btnClear = document.getElementById('btn-clear');
 const filterStatusEl = document.getElementById('filter-status');
 const kmAggregateEl = document.getElementById('km-aggregate');
 
@@ -58,19 +60,33 @@ function setupEventListeners() {
     });
   }
 
+  // Clear search icon/button inside search input
+  if (btnClearSearch) {
+    btnClearSearch.addEventListener('click', clearSearch);
+  }
+
   // Shortcut buttons
   if (btnThisYear) btnThisYear.addEventListener('click', onThisYearClick);
   if (btnThisMonth) btnThisMonth.addEventListener('click', onThisMonthClick);
+  if (btnClear) btnClear.addEventListener('click', clearSearch);
 
   // Clear selection/search on Escape
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      if (searchInput && searchInput.value) {
-        searchInput.value = '';
-        onSearchChanged('');
-      }
+      clearSearch();
     }
   });
+}
+
+/**
+ * Clears the active search query and resets filters.
+ */
+function clearSearch() {
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.dispatchEvent(new Event('input'));
+  }
+  onSearchChanged('');
 }
 
 // 1. Check Config and Trigger SDK Loads
@@ -451,6 +467,17 @@ function updateShortcutButtons() {
   }
   if (btnThisMonth) {
     btnThisMonth.classList.toggle('active', activeFilter.date === monthStr && !activeFilter.text && !activeFilter.id);
+  }
+
+  if (btnClear) {
+    const hasFilter = !!(activeFilter.id || activeFilter.date || activeFilter.text);
+    if (hasFilter) {
+      btnClear.removeAttribute('disabled');
+      btnClear.classList.remove('disabled');
+    } else {
+      btnClear.setAttribute('disabled', 'true');
+      btnClear.classList.add('disabled');
+    }
   }
 }
 
