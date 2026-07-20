@@ -85,30 +85,11 @@ body {
   gap: 1rem;
 }
 
-.folder-controls-group {
-  display: flex;
-  align-items: center;
-}
-
-.top-folder-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  border: 1px solid var(--border-color);
-  padding: 0.45rem 0.9rem;
-  border-radius: 4px;
-  background-color: var(--color-primary-bg);
-}
-
-.folder-label {
-  color: var(--text-muted);
+/* Sync Status */
+.sync-status {
   font-size: 0.8rem;
-}
-
-.folder-name {
-  font-weight: 500;
-  color: var(--text-color);
-  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
 }
 
 /* Minimal Buttons */
@@ -147,22 +128,6 @@ body {
   color: var(--text-color);
 }
 
-.btn-change {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: 0.8rem;
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
-  margin-left: 0.25rem;
-  transition: color 0.15s ease;
-}
-
-.btn-change:hover {
-  color: var(--text-color);
-}
 
 .btn-link {
   font-family: var(--font-sans);
@@ -565,6 +530,13 @@ body {
   align-items: center;
   margin-bottom: 0.5rem;
   min-height: 1.25rem;
+}
+
+.sidebar-aggregate {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+  min-height: 1rem;
 }
 
 .filter-status {
@@ -972,3 +944,61 @@ body {
   background-color: #ffffff;
 }
 
+/* Storage Indicator */
+.storage-indicator {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* Delete Activity Button */
+.btn-delete-activity {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  display: flex;
+  align-items: center;
+}
+
+.file-item:hover .btn-delete-activity {
+  opacity: 1;
+}
+
+.btn-delete-activity:hover {
+  color: #ff4444;
+}
+
+/* Drag-and-Drop Zone */
+.app-main.drag-over {
+  outline: 2px dashed var(--text-muted);
+  outline-offset: -4px;
+  border-radius: 8px;
+}
+
+/* Notice Toast */
+.notice-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(1rem);
+  background: var(--color-primary-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.notice-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

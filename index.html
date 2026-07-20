@@ -27,21 +27,15 @@
       </div>
       <div class="header-controls">
         <div class="controls-actions">
+          <!-- Add activities button -->
+          <button id="btn-add-files" class="btn btn-sm btn-accent">Add Activities</button>
+          <input type="file" id="file-upload" accept=".fit" multiple hidden>
+
+          <!-- Sync status indicator -->
+          <span id="sync-status" class="sync-status hidden"></span>
+
           <!-- Auth button (visible when disconnected) -->
           <button id="btn-auth" class="btn btn-sm btn-primary">Connect Drive</button>
-          
-          <!-- Folder Selection controls (visible when connected) -->
-          <div id="top-folder-controls" class="folder-controls-group hidden">
-            <!-- Select folder trigger -->
-            <button id="btn-picker" class="btn btn-sm btn-accent">Select Drive Folder</button>
-            
-            <!-- Folder info and change button -->
-            <div id="top-folder-info" class="top-folder-info hidden">
-              <span class="folder-label">Folder:</span>
-              <span id="selected-folder-name" class="folder-name">-</span>
-              <button id="btn-change-folder" class="btn-change" title="Change Folder">Change</button>
-            </div>
-          </div>
 
           <!-- Disconnect button (visible when connected) -->
           <button id="btn-signout" class="btn btn-sm btn-outline hidden">Disconnect</button>
@@ -57,16 +51,11 @@
         <p class="error-text">API credentials missing. Please configure <code>config.js</code>.</p>
       </div>
 
-      <!-- Auth State Placeholder -->
-      <div id="state-connect-prompt" class="state-view hidden">
-        <h2 class="prompt-title">Connect Google Drive</h2>
-        <p class="prompt-desc">Connect your Google Drive in the top bar to load and visualize your activity files.</p>
-      </div>
-
-      <!-- Folder Selection State Placeholder -->
-      <div id="state-folder-prompt" class="state-view hidden">
-        <h2 class="prompt-title">Select Folder</h2>
-        <p class="prompt-desc">Click "Select Drive Folder" in the top bar to load and display your activity files.</p>
+      <!-- Empty State -->
+      <div id="state-empty" class="state-view hidden">
+        <div class="prompt-icon">📂</div>
+        <h2 class="prompt-title">Add Your Activities</h2>
+        <p class="prompt-desc">Drop .fit files here or click "Add Activities" to get started.</p>
       </div>
 
       <!-- Loading State -->
@@ -97,6 +86,9 @@
             </div>
             <div class="sidebar-info">
               <span id="filter-status" class="filter-status"></span>
+              <span id="storage-used" class="storage-indicator" title="Local storage used"></span>
+            </div>
+            <div class="sidebar-aggregate">
               <span id="km-aggregate" class="km-aggregate"></span>
             </div>
             <div class="files-list-container">

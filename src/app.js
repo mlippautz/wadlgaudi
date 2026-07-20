@@ -1,30 +1,42 @@
-import { escapeHtml, formatDistance, formatMonth, parseSearchQuery, matchesFuzzy, cleanActivityName } from './utils/helpers.js';
+import { escapeHtml, formatDistance, formatMonth, formatBytes, parseSearchQuery, matchesFuzzy, cleanActivityName } from './utils/helpers.js';
 import {
   isConfigValid,
   loadGoogleApis,
   checkInitialization,
   handleAuth,
   handleSignout,
-  loadAllActivities,
   getAccessToken,
-  isSdkLoaded
+  isSdkLoaded,
+  listAppDataFiles,
+  uploadFileToAppData,
+  deleteAppDataFile,
 } from './services/google.js';
 import { downloadFileContent, parseFitData } from './services/fit.js';
 import { initMap, clearPaths, drawRoute, invalidateMapSize, fitMapToRoutes } from './services/map.js';
+import {
+  storeFile,
+  getFile,
+  removeFile,
+  getAllFiles,
+  getUnsyncedFiles,
+  markSynced,
+  getTotalStorageBytes,
+  storeActivity,
+  getAllActivities,
+  removeActivity,
+} from './services/storage.js';
 
 // State Variables
-let allActivities = [];       // Enriched activity objects (Drive metadata + parsed FIT data)
+let allActivities = [];       // Enriched activity objects (parsed FIT data)
 let filteredActivities = [];   // Currently displayed subset after filtering
 let activeFilter = { id: null, date: null, text: null };  // Parsed filter state
-let currentFolderId = localStorage.getItem('drive_sync_folder_id') || null;
-let currentFolderName = localStorage.getItem('drive_sync_folder_name') || null;
+let selectedActivityId = null; // Currently selected unique activity name (filename)
 
 // DOM Elements
 const btnAuth = document.getElementById('btn-auth');
 const btnSignout = document.getElementById('btn-signout');
-const btnPicker = document.getElementById('btn-picker');
-const btnChangeFolder = document.getElementById('btn-change-folder');
-const selectedFolderName = document.getElementById('selected-folder-name');
+const btnAddFiles = document.getElementById('btn-add-files');
+const fileUploadInput = document.getElementById('file-upload');
 const filesList = document.getElementById('files-list');
 const searchInput = document.getElementById('search-input');
 const btnClearSearch = document.getElementById('btn-clear-search');
@@ -33,6 +45,7 @@ const btnThisMonth = document.getElementById('btn-this-month');
 const btnClear = document.getElementById('btn-clear');
 const filterStatusEl = document.getElementById('filter-status');
 const kmAggregateEl = document.getElementById('km-aggregate');
+const storageUsedEl = document.getElementById('storage-used');
 
 // Debounce timer for search input
 let searchDebounceTimer = null;
@@ -40,15 +53,42 @@ let searchDebounceTimer = null;
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
-  checkConfigAndInit();
+  initFromCache();
 });
 
 // Event Bindings
 function setupEventListeners() {
   if (btnAuth) btnAuth.addEventListener('click', executeAuthFlow);
   if (btnSignout) btnSignout.addEventListener('click', executeSignoutFlow);
-  if (btnPicker) btnPicker.addEventListener('click', openPicker);
-  if (btnChangeFolder) btnChangeFolder.addEventListener('click', openPicker);
+
+  // File upload
+  if (btnAddFiles) btnAddFiles.addEventListener('click', () => fileUploadInput?.click());
+  if (fileUploadInput) fileUploadInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+      handleFilesAdded(e.target.files);
+      e.target.value = ''; // Reset so same file can be re-selected
+    }
+  });
+
+  // Drag-and-drop on the main area
+  const appMain = document.querySelector('.app-main');
+  if (appMain) {
+    appMain.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      appMain.classList.add('drag-over');
+    });
+    appMain.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      appMain.classList.remove('drag-over');
+    });
+    appMain.addEventListener('drop', (e) => {
+      e.preventDefault();
+      appMain.classList.remove('drag-over');
+      if (e.dataTransfer.files.length > 0) {
+        handleFilesAdded(e.dataTransfer.files);
+      }
+    });
+  }
 
   // Search input with debounce
   if (searchInput) {
@@ -97,6 +137,7 @@ function setupEventListeners() {
  * Clears the active search query and resets filters.
  */
 function clearSearch() {
+  selectedActivityId = null;
   if (searchInput) {
     searchInput.value = '';
     searchInput.dispatchEvent(new Event('input'));
@@ -104,33 +145,45 @@ function clearSearch() {
   onSearchChanged('');
 }
 
-// 1. Check Config and Trigger SDK Loads
-function checkConfigAndInit() {
-  if (!isConfigValid()) {
-    showState('credentials-missing');
-    return;
+// 1. Initialize from IndexedDB cache, then optionally load Google APIs
+async function initFromCache() {
+  try {
+    // Load cached activities from IndexedDB
+    const cached = await getAllActivities();
+    if (cached.length > 0) {
+      // Restore Date objects from serialized strings
+      allActivities = cached.map(a => ({
+        ...a,
+        displayDate: a.startTime ? new Date(a.startTime) : null,
+      }));
+      sortActivities();
+      showState('dashboard');
+      applyFiltersAndRender();
+      updateStorageIndicator();
+    }
+  } catch (err) {
+    console.warn('Failed to load from IndexedDB:', err);
   }
-  
-  showState('loading');
-  
-  loadGoogleApis(window.DRIVE_APP_CONFIG)
-    .then(() => {
-      checkInitialAuthState();
-    })
-    .catch((error) => {
-      console.error('Error loading Google APIs:', error);
-      showError(`Failed to load Google Drive SDKs: ${error.message || error}`);
-    });
-}
 
-function checkInitialAuthState() {
-  const isAuthorized = checkInitialization();
-  updateConnectionStatus(isAuthorized);
-  
-  if (isAuthorized) {
-    onAuthSuccess();
-  } else {
-    showState('connect-prompt');
+  // Try loading Google APIs for sync (non-blocking)
+  if (isConfigValid()) {
+    try {
+      await loadGoogleApis(window.DRIVE_APP_CONFIG);
+      const isAuthorized = checkInitialization();
+      updateConnectionStatus(isAuthorized);
+
+      if (isAuthorized) {
+        // Background sync with Drive
+        syncWithDrive().catch(err => console.warn('Background sync failed:', err));
+      }
+    } catch (error) {
+      console.warn('Google APIs not available:', error);
+    }
+  }
+
+  // If no cached activities and no Google APIs, show empty state
+  if (allActivities.length === 0) {
+    showState('empty');
   }
 }
 
@@ -140,11 +193,11 @@ function executeAuthFlow() {
     onStatus: (msg) => setLoadingStatus(msg),
     onSuccess: () => {
       updateConnectionStatus(true);
-      onAuthSuccess();
+      // Trigger background sync
+      syncWithDrive().catch(err => console.warn('Sync after auth failed:', err));
     },
     onFailure: (error) => {
       updateConnectionStatus(false);
-      showState('connect-prompt');
       alert(`Auth failed: ${error.message || error}`);
     }
   });
@@ -152,34 +205,236 @@ function executeAuthFlow() {
 
 function executeSignoutFlow() {
   handleSignout();
-  
-  currentFolderId = null;
-  currentFolderName = null;
-  allActivities = [];
-  filteredActivities = [];
-  activeFilter = { id: null, date: null, text: null };
-  if (searchInput) searchInput.value = '';
-  
   updateConnectionStatus(false);
-  updateFolderDisplay();
-  showState('connect-prompt');
+  updateSyncStatus('');
 }
 
-function onAuthSuccess() {
-  updateFolderDisplay();
-  if (currentFolderId) {
-    fetchAndDisplayActivities(currentFolderId);
-  } else {
-    showState('folder-prompt');
+// 3. File Handling — Add
+
+/**
+ * Handles files added via file input or drag-and-drop.
+ * Validates, deduplicates, stores in IndexedDB, parses, and renders.
+ * @param {FileList} fileList
+ */
+async function handleFilesAdded(fileList) {
+  const filesArray = Array.from(fileList);
+  console.log(`[Import] Starting import for ${filesArray.length} files...`);
+  const skipped = [];
+  let added = 0;
+
+  for (const file of filesArray) {
+    if (!file.name.toLowerCase().endsWith('.fit')) {
+      console.log(`[Import] Skipped non-FIT file: ${file.name}`);
+      continue;
+    }
+
+    // Duplicate check — skip files already in the local store
+    if (allActivities.some(a => a.name === file.name)) {
+      console.log(`[Import] Skipped duplicate file: ${file.name}`);
+      skipped.push(file.name);
+      continue;
+    }
+
+    try {
+      console.log(`[Import] Processing file: ${file.name} (${file.size} bytes)`);
+
+      // Read binary data
+      const arrayBuffer = await file.arrayBuffer();
+      console.log(`[Import] File read success: ${file.name}`);
+
+      // Store raw file in IndexedDB
+      await storeFile(file.name, arrayBuffer);
+      console.log(`[Import] Stored raw file in IndexedDB: ${file.name}`);
+
+      // Parse FIT data
+      console.log(`[Import] Parsing FIT data for: ${file.name}`);
+      const parsed = await parseFitData(arrayBuffer);
+      console.log(`[Import] FIT parse complete: ${file.name}`, parsed ? "Success" : "Failed (null)");
+
+      const activity = buildActivity(file.name, parsed);
+
+      // Store parsed metadata in IndexedDB
+      await storeActivity(activity);
+      allActivities.push(activity);
+      console.log(`[Import] Saved metadata to IndexedDB: ${file.name}`);
+
+      added++;
+    } catch (err) {
+      console.error(`[Import] Error processing file ${file.name}:`, err);
+    }
+  }
+
+  console.log(`[Import] Finished processing. Added: ${added}, Skipped: ${skipped.length}`);
+
+  if (skipped.length > 0) {
+    showNotice(`${skipped.length} duplicate(s) skipped`);
+  }
+
+  if (added > 0) {
+    sortActivities();
+    showState('dashboard');
+    applyFiltersAndRender();
+    updateStorageIndicator();
+
+    // Background sync to Drive (fire-and-forget)
+    if (isDriveConnected()) {
+      syncUnsyncedToDrive().catch(err => console.warn('Sync failed:', err));
+    }
   }
 }
 
-// 3. UI Status Controllers
+// 4. File Handling — Remove
+
+/**
+ * Removes an activity from local cache and optionally from Drive.
+ * @param {string} originalFileName - The original filename in IndexedDB.
+ */
+async function handleFileRemoved(originalFileName) {
+  // Remove from IndexedDB (both stores)
+  await removeFile(originalFileName);
+  await removeActivity(originalFileName);
+
+  // Remove from in-memory state
+  allActivities = allActivities.filter(a => a.name !== originalFileName);
+
+  // Re-render
+  applyFiltersAndRender();
+  updateStorageIndicator();
+
+  // Show empty state if no activities left
+  if (allActivities.length === 0) {
+    showState('empty');
+  }
+
+  // Background: delete from Drive if connected
+  if (isDriveConnected()) {
+    deleteFromDriveByName(originalFileName).catch(err =>
+      console.warn('Drive delete failed:', err)
+    );
+  }
+}
+
+// 5. Drive Sync
+
+/**
+ * Returns true if Google APIs are loaded and user is authenticated.
+ */
+function isDriveConnected() {
+  return isSdkLoaded() && !!getAccessToken();
+}
+
+/**
+ * Pushes unsynced local files to Drive's appDataFolder.
+ */
+async function syncUnsyncedToDrive() {
+  console.log('[Sync] Querying unsynced files from IndexedDB...');
+  const unsynced = await getUnsyncedFiles();
+  console.log(`[Sync] Found ${unsynced.length} unsynced file(s) to upload.`);
+  if (unsynced.length === 0) return;
+
+  updateSyncStatus(`Syncing ${unsynced.length} file(s)...`);
+
+  for (const file of unsynced) {
+    try {
+      console.log(`[Sync] Starting upload for: ${file.name} (${file.data.byteLength} bytes)`);
+      const response = await uploadFileToAppData(file.name, file.data);
+      console.log(`[Sync] Upload successful for: ${file.name}. Response ID: ${response.id}`);
+      await markSynced(file.name);
+      console.log(`[Sync] Marked as synced: ${file.name}`);
+    } catch (err) {
+      console.error(`[Sync] Failed to sync ${file.name}:`, err);
+    }
+  }
+
+  updateSyncStatus('✓ Synced');
+  setTimeout(() => updateSyncStatus(''), 3000);
+}
+
+/**
+ * Full bidirectional sync with Drive.
+ * Push unsynced local files, pull new Drive files, resolve conflicts by modifiedTime.
+ */
+async function syncWithDrive() {
+  updateSyncStatus('Syncing...');
+
+  // Push: upload any local files not yet synced
+  const unsynced = await getUnsyncedFiles();
+  for (const file of unsynced) {
+    try {
+      await uploadFileToAppData(file.name, file.data);
+      await markSynced(file.name);
+    } catch (err) {
+      console.warn(`Failed to upload ${file.name}:`, err);
+    }
+  }
+
+  // Pull: download any Drive files not in local cache
+  try {
+    const driveFiles = await listAppDataFiles();
+    let pulled = 0;
+
+    for (const df of driveFiles) {
+      const local = await getFile(df.name);
+
+      if (!local) {
+        // New file on Drive — pull it
+        const arrayBuffer = await downloadFileContent(df.id);
+        await storeFile(df.name, arrayBuffer);
+        await markSynced(df.name);
+        const parsed = await parseFitData(arrayBuffer);
+        const activity = buildActivity(df.name, parsed);
+        await storeActivity(activity);
+        allActivities.push(activity);
+        pulled++;
+      } else if (local.addedAt && df.modifiedTime) {
+        // Conflict: same name exists locally and on Drive — newer wins
+        const driveTime = new Date(df.modifiedTime).getTime();
+        if (driveTime > local.addedAt) {
+          const arrayBuffer = await downloadFileContent(df.id);
+          await storeFile(df.name, arrayBuffer);
+          await markSynced(df.name);
+          const parsed = await parseFitData(arrayBuffer);
+          const activity = buildActivity(df.name, parsed);
+          await storeActivity(activity);
+          allActivities = allActivities.filter(a => a.name !== activity.name);
+          allActivities.push(activity);
+          pulled++;
+        }
+      }
+    }
+
+    if (pulled > 0) {
+      sortActivities();
+      showState('dashboard');
+      applyFiltersAndRender();
+      updateStorageIndicator();
+    }
+  } catch (err) {
+    console.warn('Failed to pull from Drive:', err);
+  }
+
+  updateSyncStatus('✓ Synced');
+  setTimeout(() => updateSyncStatus(''), 3000);
+}
+
+/**
+ * Deletes a file from Drive's appDataFolder by name.
+ * Finds the file by name first, then deletes by ID.
+ */
+async function deleteFromDriveByName(fileName) {
+  const driveFiles = await listAppDataFiles();
+  const match = driveFiles.find(f => f.name === fileName);
+  if (match) {
+    await deleteAppDataFile(match.id);
+  }
+}
+
+// 6. UI Status Controllers
+
 function updateConnectionStatus(isConnected) {
   const btnAuth = document.getElementById('btn-auth');
   const btnSignout = document.getElementById('btn-signout');
-  const topFolderControls = document.getElementById('top-folder-controls');
-  
+
   if (isConnected) {
     if (btnAuth) {
       btnAuth.classList.add('hidden');
@@ -187,7 +442,6 @@ function updateConnectionStatus(isConnected) {
       btnAuth.textContent = 'Connect Drive';
     }
     if (btnSignout) btnSignout.classList.remove('hidden');
-    if (topFolderControls) topFolderControls.classList.remove('hidden');
   } else {
     if (btnAuth) {
       btnAuth.classList.remove('hidden');
@@ -195,7 +449,6 @@ function updateConnectionStatus(isConnected) {
       btnAuth.textContent = 'Connect Drive';
     }
     if (btnSignout) btnSignout.classList.add('hidden');
-    if (topFolderControls) topFolderControls.classList.add('hidden');
   }
 }
 
@@ -207,23 +460,48 @@ function setLoadingStatus(msg) {
   }
 }
 
-function updateFolderDisplay() {
-  const topFolderInfo = document.getElementById('top-folder-info');
-  const btnPicker = document.getElementById('btn-picker');
-  
-  if (currentFolderId && currentFolderName) {
-    selectedFolderName.textContent = currentFolderName;
-    if (topFolderInfo) topFolderInfo.classList.remove('hidden');
-    if (btnPicker) btnPicker.classList.add('hidden');
+function updateSyncStatus(text) {
+  const syncEl = document.getElementById('sync-status');
+  if (!syncEl) return;
+  if (text) {
+    syncEl.textContent = text;
+    syncEl.classList.remove('hidden');
   } else {
-    selectedFolderName.textContent = '-';
-    if (topFolderInfo) topFolderInfo.classList.add('hidden');
-    if (btnPicker) btnPicker.classList.remove('hidden');
+    syncEl.classList.add('hidden');
   }
 }
 
+async function updateStorageIndicator() {
+  if (!storageUsedEl) return;
+  try {
+    const bytes = await getTotalStorageBytes();
+    storageUsedEl.textContent = bytes > 0 ? formatBytes(bytes) : '';
+  } catch (err) {
+    storageUsedEl.textContent = '';
+  }
+}
+
+/**
+ * Shows a brief notice message (e.g., duplicates skipped).
+ */
+function showNotice(msg) {
+  // Create a temporary notice element
+  const notice = document.createElement('div');
+  notice.className = 'notice-toast';
+  notice.textContent = msg;
+  document.body.appendChild(notice);
+
+  // Trigger animation
+  requestAnimationFrame(() => notice.classList.add('show'));
+
+  setTimeout(() => {
+    notice.classList.remove('show');
+    setTimeout(() => notice.remove(), 300);
+  }, 2500);
+}
+
 // State display swapper
-const states = ['credentials-missing', 'connect-prompt', 'folder-prompt', 'loading'];
+const states = ['credentials-missing', 'connect-prompt', 'empty', 'loading'];
 function showState(activeState) {
   states.forEach(state => {
     const el = document.getElementById(`state-${state}`);
@@ -244,11 +522,9 @@ function showState(activeState) {
     if (toggleText) {
       toggleText.textContent = 'Show Map';
     }
-    // Initialize map on dashboard load and invalidate size so it recalculates container bounds
-    setTimeout(() => {
-      initMap();
-      invalidateMapSize();
-    }, 50);
+    // Initialize map synchronously on dashboard load
+    initMap();
+    invalidateMapSize();
   } else {
     dashboard.classList.add('hidden');
   }
@@ -262,118 +538,15 @@ function showError(msg) {
   }
 }
 
-// 4. Google Picker Integration
-function openPicker() {
-  const token = getAccessToken();
-  if (!token || !isSdkLoaded()) return;
-
-  const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
-    .setMimeTypes('application/vnd.google-apps.folder')
-    .setSelectFolderEnabled(true);
-
-  const picker = new google.picker.PickerBuilder()
-    .addView(view)
-    .setOAuthToken(token)
-    .setDeveloperKey(DRIVE_APP_CONFIG.API_KEY)
-    .setCallback(pickerCallback)
-    .setTitle('Select Folder')
-    .build();
-
-  picker.setVisible(true);
-}
-
-function pickerCallback(data) {
-  if (data.action === google.picker.Action.PICKED) {
-    const doc = data.docs[0];
-    currentFolderId = doc.id;
-    currentFolderName = doc.name;
-
-    localStorage.setItem('drive_sync_folder_id', currentFolderId);
-    localStorage.setItem('drive_sync_folder_name', currentFolderName);
-
-    updateFolderDisplay();
-    fetchAndDisplayActivities(currentFolderId);
-  }
-}
-
-// 5. Fetch, Parse, and Build Activity Model
-async function fetchAndDisplayActivities(folderId) {
-  showState('dashboard');
-
-  // Show loading state in sidebar
-  filesList.innerHTML = `
-    <li class="sidebar-loading">
-      <div class="spinner"></div>
-      Parsing activities...
-    </li>
-  `;
-  clearPaths();
-  updateFilterStatus();
-  updateAggregate();
-
-  try {
-    // Recursively collect all supported activity files
-    const files = await loadAllActivities(folderId);
-
-    if (files.length === 0) {
-      allActivities = [];
-      filteredActivities = [];
-      renderActivities();
-      return;
-    }
-
-    // Parse all FIT files in parallel
-    const enriched = await Promise.all(files.map(async (file) => {
-      try {
-        const arrayBuffer = await downloadFileContent(file.id);
-        const parsed = await parseFitData(arrayBuffer);
-
-        if (!parsed) {
-          return buildActivity(file, null);
-        }
-        return buildActivity(file, parsed);
-      } catch (error) {
-        console.error(`Failed to parse ${file.name}:`, error);
-        return buildActivity(file, null);
-      }
-    }));
-
-    // Sort by date descending (newest first)
-    enriched.sort((a, b) => {
-      if (!a.displayDate && !b.displayDate) return 0;
-      if (!a.displayDate) return 1;
-      if (!b.displayDate) return -1;
-      return b.displayDate.getTime() - a.displayDate.getTime();
-    });
-
-    allActivities = enriched;
-
-    // Reset filter on new folder load
-    activeFilter = { id: null, date: null, text: null };
-    if (searchInput) searchInput.value = '';
-    updateShortcutButtons();
-
-    // Apply filters and render
-    applyFiltersAndRender();
-
-  } catch (error) {
-    console.error('Error fetching activities:', error);
-    if (error.status === 401) {
-      updateConnectionStatus(false);
-      showState('connect-prompt');
-    } else {
-      showError(`Failed to fetch activities: ${error.result?.error?.message || error.message}`);
-    }
-  }
-}
+// 7. Activity Model
 
 /**
- * Builds an enriched activity object from Drive file metadata + parsed FIT data.
+ * Builds an enriched activity object from a filename + parsed FIT data.
  */
-function buildActivity(file, parsed) {
+function buildActivity(fileName, parsed) {
+  const displayName = cleanActivityName(fileName);
   const startTime = parsed?.startTime ?? null;
-  const modifiedDate = file.modifiedTime ? new Date(file.modifiedTime) : null;
-  const displayDate = startTime || modifiedDate;
+  const displayDate = startTime || null;
 
   // Compute date keys for filtering and grouping
   let dateString = null;
@@ -390,16 +563,14 @@ function buildActivity(file, parsed) {
   }
 
   return {
-    // Drive metadata
-    id: file.id,
-    name: cleanActivityName(file.name),
-    size: file.size,
-    webViewLink: file.webViewLink,
-    webContentLink: file.webContentLink,
+    // File reference
+    name: fileName,
+    displayName,
+    originalFileName: fileName,
     // Parsed FIT data
     distanceMeters: parsed?.distanceMeters ?? null,
     coordinates: parsed?.coordinates ?? [],
-    startTime,
+    startTime: startTime ? startTime.toISOString() : null,
     sport: parsed?.sport ?? null,
     // Computed
     displayDate,
@@ -409,12 +580,27 @@ function buildActivity(file, parsed) {
   };
 }
 
-// 6. Filtering Logic
+/**
+ * Sorts allActivities by date descending (newest first).
+ */
+function sortActivities() {
+  allActivities.sort((a, b) => {
+    const da = a.displayDate ? new Date(a.displayDate).getTime() : 0;
+    const db = b.displayDate ? new Date(b.displayDate).getTime() : 0;
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return db - da;
+  });
+}
+
+// 8. Filtering Logic
 
 /**
  * Handles search input changes — parses query and applies filters.
  */
 function onSearchChanged(value) {
+  selectedActivityId = null;
   activeFilter = parseSearchQuery(value);
   updateShortcutButtons();
   applyFiltersAndRender();
@@ -423,14 +609,11 @@ function onSearchChanged(value) {
 /**
  * Toggles single activity selection. Updates search input text to id:<id>.
  */
-function toggleSelectActivity(id) {
-  if (activeFilter.id === id) {
-    if (searchInput) searchInput.value = '';
-    onSearchChanged('');
+function toggleSelectActivity(name) {
+  if (selectedActivityId === name) {
+    selectedActivityId = null;
   } else {
-    const query = `id:${id}`;
-    if (searchInput) searchInput.value = query;
-    onSearchChanged(query);
+    selectedActivityId = name;
 
     // Auto-switch to Map view on mobile when selecting an activity
     const dashboard = document.getElementById('dashboard-view');
@@ -442,12 +625,14 @@ function toggleSelectActivity(id) {
       }
     }
   }
+  applyFiltersAndRender();
 }
 
 /**
  * "This Year" shortcut — toggles date filter for current year.
  */
 function onThisYearClick() {
+  selectedActivityId = null;
   const now = new Date();
   const yearStr = `${now.getFullYear()}`;
 
@@ -468,6 +653,7 @@ function onThisYearClick() {
  * "This Month" shortcut — toggles date filter for current month.
  */
 function onThisMonthClick() {
+  selectedActivityId = null;
   const now = new Date();
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
@@ -516,10 +702,8 @@ function updateShortcutButtons() {
  */
 function applyFiltersAndRender() {
   filteredActivities = allActivities.filter(activity => {
-    // ID filter
-    if (activeFilter.id) {
-      if (activity.id !== activeFilter.id) return false;
-    }
+    // Single activity selection filter
+    if (selectedActivityId && activity.name !== selectedActivityId) return false;
 
     // Date filter
     if (activeFilter.date) {
@@ -535,9 +719,10 @@ function applyFiltersAndRender() {
       }
     }
 
-    // Text filter (fuzzy match on filename)
+    // Text filter (fuzzy match on display name or original filename)
     if (activeFilter.text) {
-      if (!matchesFuzzy(activeFilter.text, activity.name)) return false;
+      if (!matchesFuzzy(activeFilter.text, activity.displayName) &&
+          !matchesFuzzy(activeFilter.text, activity.name)) return false;
     }
 
     return true;
@@ -549,7 +734,7 @@ function applyFiltersAndRender() {
   renderMapRoutes();
 }
 
-// 7. Rendering
+// 9. Rendering
 
 /**
  * Renders the filtered activities list grouped by month with separators.
@@ -559,7 +744,7 @@ function renderActivities() {
 
   if (filteredActivities.length === 0) {
     if (allActivities.length === 0) {
-      filesList.innerHTML = `<li class="sidebar-empty">No activities found</li>`;
+      filesList.innerHTML = `<li class="sidebar-empty">No activities yet</li>`;
     } else {
       filesList.innerHTML = `<li class="sidebar-empty">No matching activities</li>`;
     }
@@ -567,7 +752,7 @@ function renderActivities() {
   }
 
   // Manage selection class on parent list
-  if (activeFilter.id) {
+  if (selectedActivityId) {
     filesList.classList.add('has-selection');
   } else {
     filesList.classList.remove('has-selection');
@@ -585,7 +770,7 @@ function renderActivities() {
       const separator = document.createElement('li');
       separator.className = 'month-separator';
       separator.textContent = activity.displayDate
-        ? formatMonth(activity.displayDate)
+        ? formatMonth(new Date(activity.displayDate))
         : 'Unknown Date';
       filesList.appendChild(separator);
     }
@@ -593,32 +778,39 @@ function renderActivities() {
     // Render activity item
     const li = document.createElement('li');
     li.className = 'file-item';
-    if (activeFilter.id === activity.id) {
+    if (selectedActivityId === activity.name) {
       li.classList.add('selected');
     }
 
     const distText = formatDistance(activity.distanceMeters);
 
     li.innerHTML = `
-      <span class="file-name-btn" role="button" tabindex="0">${escapeHtml(activity.name)}</span>
+      <span class="file-name-btn" role="button" tabindex="0">${escapeHtml(activity.displayName)}</span>
       <div class="file-meta">
-        <a href="${activity.webViewLink}" target="_blank" class="download-link" title="Open in Google Drive">
+        <button class="btn-delete-activity" title="Remove activity" data-name="${escapeHtml(activity.name)}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <line x1="10" y1="14" x2="21" y2="3"></line>
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
           </svg>
-        </a>
+        </button>
         <span class="file-size">${distText}</span>
       </div>
     `;
 
+    // Click on name to select/deselect
     li.addEventListener('click', (e) => {
-      if (e.target.closest('.download-link')) {
-        return;
-      }
-      toggleSelectActivity(activity.id);
+      if (e.target.closest('.btn-delete-activity')) return;
+      toggleSelectActivity(activity.name);
     });
+
+    // Click on delete button
+    const deleteBtn = li.querySelector('.btn-delete-activity');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleFileRemoved(activity.name);
+      });
+    }
 
     filesList.appendChild(li);
   });
@@ -631,12 +823,10 @@ function updateFilterStatus() {
   if (!filterStatusEl) return;
 
   const parts = [];
-  if (activeFilter.id) {
-    const selected = allActivities.find(a => a.id === activeFilter.id);
+  if (selectedActivityId) {
+    const selected = allActivities.find(a => a.name === selectedActivityId);
     if (selected) {
-      parts.push(`activity="${selected.name}"`);
-    } else {
-      parts.push(`id=${activeFilter.id}`);
+      parts.push(`activity="${selected.displayName}"`);
     }
   }
   if (activeFilter.date) {

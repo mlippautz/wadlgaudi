@@ -1,5 +1,7 @@
 /**
  * Service for Google API Client (GAPI) and Google Identity Services (GIS)
+ *
+ * Uses the drive.appdata scope to access only the app's private folder.
  */
 
 let gapiApiLoaded = false;
@@ -58,9 +60,9 @@ function loadScript(src) {
  * @returns {Promise<void>}
  */
 export async function loadGoogleApis(config) {
-  // Load GAPI (API Client)
+  // Load GAPI (API Client) — no Picker needed
   await loadScript('https://apis.google.com/js/api.js');
-  await new Promise((resolve) => gapi.load('client:picker', resolve));
+  await new Promise((resolve) => gapi.load('client', resolve));
 
   // Initialize GAPI
   await gapi.client.init({
@@ -73,7 +75,7 @@ export async function loadGoogleApis(config) {
   await loadScript('https://accounts.google.com/gsi/client');
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: config.CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/drive.file',
+    scope: 'https://www.googleapis.com/auth/drive.appdata',
     callback: '', // Defined dynamically during handleAuth
   });
   gisLoaded = true;
@@ -150,57 +152,50 @@ export function handleSignout() {
   
   localStorage.removeItem('drive_sync_token');
   localStorage.removeItem('drive_sync_token_expiry');
-  localStorage.removeItem('drive_sync_folder_id');
-  localStorage.removeItem('drive_sync_folder_name');
 }
 
 /**
- * Queries files inside a specific Google Drive folder.
- * @param {string} folderId - The unique Google Drive folder ID.
+ * Lists all files in the app's private Drive appDataFolder.
  * @returns {Promise<Array>} List of file objects.
  */
-export async function loadFolderContents(folderId) {
+export async function listAppDataFiles() {
   if (!gapiApiLoaded) throw new Error('Google Drive SDK not loaded.');
 
   const response = await gapi.client.drive.files.list({
-    q: `'${folderId}' in parents and trashed = false`,
-    fields: 'files(id, name, mimeType, size, modifiedTime, webViewLink, webContentLink)',
-    orderBy: 'folder,name',
-    pageSize: 100
+    spaces: 'appDataFolder',
+    fields: 'files(id, name, size, modifiedTime)',
+    orderBy: 'modifiedTime desc',
+    pageSize: 200
   });
 
   return response.result.files || [];
 }
 
 /**
- * Checks if a file is a supported activity format.
- * @param {object} file - Google Drive file object.
- * @returns {boolean} True if the file is a supported activity type.
+ * Uploads a binary file to the app's private Drive appDataFolder.
+ * @param {string} name - Filename.
+ * @param {ArrayBuffer} arrayBuffer - Raw binary data.
+ * @returns {Promise<object>} The created file metadata from Drive.
  */
-export function isSupportedActivity(file) {
-  const name = file.name.toLowerCase();
-  return name.endsWith('.fit');
-  // Easy to extend: || name.endsWith('.gpx') || name.endsWith('.tcx')
+export async function uploadFileToAppData(name, arrayBuffer) {
+  const metadata = { name, parents: ['appDataFolder'] };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', new Blob([arrayBuffer]));
+
+  const response = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+    { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}` }, body: form }
+  );
+
+  if (!response.ok) throw new Error(`Upload failed (${response.status})`);
+  return await response.json();
 }
 
 /**
- * Recursively walks a Google Drive folder and collects all supported activity files.
- * Subfolders are traversed, non-activity files are ignored.
- * @param {string} folderId - The root folder ID to walk.
- * @returns {Promise<Array>} Flat list of supported activity file objects from all levels.
+ * Deletes a file from appDataFolder by its Drive file ID.
+ * @param {string} fileId - The unique Google Drive file ID.
  */
-export async function loadAllActivities(folderId) {
-  const files = await loadFolderContents(folderId);
-  const activities = [];
-
-  for (const file of files) {
-    if (file.mimeType === 'application/vnd.google-apps.folder') {
-      const nested = await loadAllActivities(file.id);
-      activities.push(...nested);
-    } else if (isSupportedActivity(file)) {
-      activities.push(file);
-    }
-  }
-
-  return activities;
+export async function deleteAppDataFile(fileId) {
+  await gapi.client.drive.files.delete({ fileId });
 }

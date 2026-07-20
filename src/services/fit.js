@@ -33,51 +33,56 @@ export async function downloadFileContent(fileId) {
  */
 export function parseFitData(arrayBuffer) {
   return new Promise((resolve) => {
-    const fitParser = new FitParser({
-      force: true,
-      speedUnit: 'km/h',
-      lengthUnit: 'm',
-    });
-    
-    fitParser.parse(arrayBuffer, (error, data) => {
-      if (error || !data) {
-        console.error('FIT parse error:', error);
-        resolve(null);
-      } else {
-        // Extract distance
-        let distanceMeters = null;
-        if (data.sessions && data.sessions.length > 0) {
-          distanceMeters = data.sessions[0].total_distance;
-        } else if (data.records && data.records.length > 0) {
-          for (let i = data.records.length - 1; i >= 0; i--) {
-            if (data.records[i].distance !== undefined) {
-              distanceMeters = data.records[i].distance;
-              break;
+    try {
+      const fitParser = new FitParser({
+        force: true,
+        speedUnit: 'km/h',
+        lengthUnit: 'm',
+      });
+      
+      fitParser.parse(arrayBuffer, (error, data) => {
+        if (error || !data) {
+          console.error('FIT parse error:', error);
+          resolve(null);
+        } else {
+          // Extract distance
+          let distanceMeters = null;
+          if (data.sessions && data.sessions.length > 0) {
+            distanceMeters = data.sessions[0].total_distance;
+          } else if (data.records && data.records.length > 0) {
+            for (let i = data.records.length - 1; i >= 0; i--) {
+              if (data.records[i].distance !== undefined) {
+                distanceMeters = data.records[i].distance;
+                break;
+              }
             }
           }
+
+          // Extract GPS coordinate path
+          const coordinates = [];
+          if (data.records) {
+            data.records.forEach(rec => {
+              const coords = getRecordCoordinates(rec);
+              if (coords) {
+                coordinates.push(coords);
+              }
+            });
+          }
+
+          // Extract activity date and sport type from session
+          const startTime = (data.sessions && data.sessions.length > 0 && data.sessions[0].start_time)
+            ? new Date(data.sessions[0].start_time)
+            : null;
+          const sport = (data.sessions && data.sessions.length > 0)
+            ? (data.sessions[0].sport || null)
+            : null;
+
+          resolve({ distanceMeters, coordinates, startTime, sport });
         }
-
-        // Extract GPS coordinate path
-        const coordinates = [];
-        if (data.records) {
-          data.records.forEach(rec => {
-            const coords = getRecordCoordinates(rec);
-            if (coords) {
-              coordinates.push(coords);
-            }
-          });
-        }
-
-        // Extract activity date and sport type from session
-        const startTime = (data.sessions && data.sessions.length > 0 && data.sessions[0].start_time)
-          ? new Date(data.sessions[0].start_time)
-          : null;
-        const sport = (data.sessions && data.sessions.length > 0)
-          ? (data.sessions[0].sport || null)
-          : null;
-
-        resolve({ distanceMeters, coordinates, startTime, sport });
-      }
-    });
+      });
+    } catch (err) {
+      console.error('FIT parser synchronous exception:', err);
+      resolve(null);
+    }
   });
 }
