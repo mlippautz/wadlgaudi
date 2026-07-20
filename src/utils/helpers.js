@@ -91,17 +91,18 @@ export function matchesFuzzy(query, text) {
 }
 
 /**
- * Parses a free-form search query to extract ID, date filters, and text filters.
+ * Parses a free-form search query to extract ID, date filters, sport filters, and text filters.
  * Date patterns like "2026", "2026-07", or "2026-07-12" are detected and separated from text queries.
  * @param {string} query - The raw search input.
- * @returns {{ id: string|null, date: string|null, text: string|null }} Parsed filter components.
+ * @returns {{ id: string|null, date: string|null, sport: string|null, text: string|null }} Parsed filter components.
  */
 export function parseSearchQuery(query) {
-  if (!query || !query.trim()) return { id: null, date: null, text: null };
+  if (!query || !query.trim()) return { id: null, date: null, sport: null, text: null };
   
   const trimmed = query.trim();
   let id = null;
   let date = null;
+  let sport = null;
   let remaining = trimmed;
   
   // 1. Match and extract ID pattern: id=123, id:123, id="123", id:'123'
@@ -112,7 +113,14 @@ export function parseSearchQuery(query) {
     remaining = remaining.replace(idMatch[0], '').replace(/\s+/g, ' ').trim();
   }
 
-  // 2. Match date patterns: YYYY, YYYY-MM, or YYYY-MM-DD
+  // 2. Match sport pattern: sport=running, sport:cycling, sport="skiing"
+  const sportMatch = remaining.match(/\bsport[=:]\s*["']?([A-Za-z0-9_-]+)["']?/i);
+  if (sportMatch) {
+    sport = sportMatch[1].toLowerCase();
+    remaining = remaining.replace(sportMatch[0], '').replace(/\s+/g, ' ').trim();
+  }
+
+  // 3. Match date patterns: YYYY, YYYY-MM, or YYYY-MM-DD
   const dateMatch = remaining.match(/\b(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/);
   if (dateMatch) {
     date = dateMatch[1];
@@ -121,7 +129,7 @@ export function parseSearchQuery(query) {
   }
   
   const text = remaining.length > 0 ? remaining : null;
-  return { id, date, text };
+  return { id, date, sport, text };
 }
 
 /**

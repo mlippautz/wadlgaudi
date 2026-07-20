@@ -29,7 +29,7 @@ import {
 // State Variables
 let allActivities = [];       // Enriched activity objects (parsed FIT data)
 let filteredActivities = [];   // Currently displayed subset after filtering
-let activeFilter = { id: null, date: null, text: null };  // Parsed filter state
+let activeFilter = { id: null, date: null, text: null, sport: null };  // Parsed filter state
 let selectedActivityId = null; // Currently selected unique activity name (filename)
 
 // DOM Elements
@@ -43,6 +43,10 @@ const btnClearSearch = document.getElementById('btn-clear-search');
 const btnThisYear = document.getElementById('btn-this-year');
 const btnThisMonth = document.getElementById('btn-this-month');
 const btnClear = document.getElementById('btn-clear');
+const btnSportAll = document.getElementById('btn-sport-all');
+const btnSportRunning = document.getElementById('btn-sport-running');
+const btnSportCycling = document.getElementById('btn-sport-cycling');
+const btnSportSkiing = document.getElementById('btn-sport-skiing');
 const filterStatusEl = document.getElementById('filter-status');
 const kmAggregateEl = document.getElementById('km-aggregate');
 const storageUsedEl = document.getElementById('storage-used');
@@ -110,6 +114,12 @@ function setupEventListeners() {
   if (btnThisMonth) btnThisMonth.addEventListener('click', onThisMonthClick);
   if (btnClear) btnClear.addEventListener('click', clearSearch);
 
+  // Sport buttons
+  if (btnSportAll) btnSportAll.addEventListener('click', () => setSportFilter(null));
+  if (btnSportRunning) btnSportRunning.addEventListener('click', () => setSportFilter('running'));
+  if (btnSportCycling) btnSportCycling.addEventListener('click', () => setSportFilter('cycling'));
+  if (btnSportSkiing) btnSportSkiing.addEventListener('click', () => setSportFilter('skiing'));
+
   // Clear selection/search on Escape
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -133,16 +143,162 @@ function setupEventListeners() {
   }
 }
 
-/**
- * Clears the active search query and resets filters.
- */
 function clearSearch() {
   selectedActivityId = null;
   if (searchInput) {
     searchInput.value = '';
-    searchInput.dispatchEvent(new Event('input'));
   }
   onSearchChanged('');
+}
+
+function setSportFilter(sport) {
+  selectedActivityId = null; // Clear individual selection
+  if (searchInput) {
+    const currentQuery = searchInput.value;
+    const newQuery = updateSearchQueryWithSport(currentQuery, sport);
+    searchInput.value = newQuery;
+    onSearchChanged(newQuery);
+  }
+}
+
+/**
+ * Updates a search query string to add, replace, or toggle a sport filter parameter.
+ * @param {string} query - The current search query.
+ * @param {string|null} targetSport - The sport to set (running, cycling, skiing, or null to clear).
+ * @returns {string} The updated search query.
+ */
+function updateSearchQueryWithSport(query, targetSport) {
+  const sportRegex = /\bsport[=:]\s*["']?([A-Za-z0-9_-]+)["']?/i;
+  const match = query.match(sportRegex);
+
+  if (targetSport === null) {
+    if (match) {
+      return query.replace(sportRegex, '').replace(/\s+/g, ' ').trim();
+    }
+    return query.trim();
+  }
+
+  if (match) {
+    // If the active sport matches, toggle it off by removing it
+    if (match[1].toLowerCase() === targetSport.toLowerCase()) {
+      return query.replace(sportRegex, '').replace(/\s+/g, ' ').trim();
+    }
+    // Otherwise, replace it with the new sport
+    return query.replace(sportRegex, `sport=${targetSport}`).trim();
+  }
+
+  // Append new sport filter
+  return query.trim() ? `${query.trim()} sport=${targetSport}` : `sport=${targetSport}`;
+}
+
+/**
+ * Updates a search query string to add, replace, or toggle a date filter parameter.
+ * @param {string} query - The current search query.
+ * @param {string|null} targetDate - The date string to set (YYYY, YYYY-MM, or null to clear).
+ * @returns {string} The updated search query.
+ */
+function updateSearchQueryWithDate(query, targetDate) {
+  const dateRegex = /\b(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/;
+  const match = query.match(dateRegex);
+
+  if (targetDate === null) {
+    if (match) {
+      return query.replace(dateRegex, '').replace(/\s+/g, ' ').trim();
+    }
+    return query.trim();
+  }
+
+  if (match) {
+    // If the active date matches, toggle it off by removing it
+    if (match[1] === targetDate) {
+      return query.replace(dateRegex, '').replace(/\s+/g, ' ').trim();
+    }
+    // Otherwise, replace it with the new date
+    return query.replace(dateRegex, targetDate).trim();
+  }
+
+  // Append new date filter
+  return query.trim() ? `${query.trim()} ${targetDate}` : targetDate;
+}
+
+/**
+ * Updates active class styling on sport filter buttons.
+ */
+function updateSportFilterButtons() {
+  const sport = activeFilter.sport;
+  if (btnSportAll) btnSportAll.classList.toggle('active', sport === null);
+  if (btnSportRunning) btnSportRunning.classList.toggle('active', sport === 'running');
+  if (btnSportCycling) btnSportCycling.classList.toggle('active', sport === 'cycling');
+  if (btnSportSkiing) btnSportSkiing.classList.toggle('active', sport === 'skiing');
+}
+
+/**
+ * Calculates the sport with the most activities in the current calendar month.
+ * Falls back to the sport with the most activities overall if there are no activities in the current month.
+ * @returns {string|null} The default sport string (running, cycling, skiing, or null).
+ */
+function getDefaultSport() {
+  if (allActivities.length === 0) return null;
+
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  // Count in current month
+  let runningCount = 0;
+  let cyclingCount = 0;
+  let skiingCount = 0;
+
+  allActivities.forEach(activity => {
+    if (activity.monthKey === currentMonthKey) {
+      const sport = activity.sport;
+      if (sport === 'running') {
+        runningCount++;
+      } else if (sport === 'cycling' || sport === 'e_biking') {
+        cyclingCount++;
+      } else if (sport && (sport.toLowerCase().includes('skiing') || sport.toLowerCase().includes('ski'))) {
+        skiingCount++;
+      }
+    }
+  });
+
+  // If we have activities in the current month, return the one with the maximum count
+  if (runningCount > 0 || cyclingCount > 0 || skiingCount > 0) {
+    if (runningCount >= cyclingCount && runningCount >= skiingCount) {
+      return 'running';
+    } else if (cyclingCount >= runningCount && cyclingCount >= skiingCount) {
+      return 'cycling';
+    } else {
+      return 'skiing';
+    }
+  }
+
+  // Fallback: Count overall
+  let overallRunning = 0;
+  let overallCycling = 0;
+  let overallSkiing = 0;
+
+  allActivities.forEach(activity => {
+    const sport = activity.sport;
+    if (sport === 'running') {
+      overallRunning++;
+    } else if (sport === 'cycling' || sport === 'e_biking') {
+      overallCycling++;
+    } else if (sport && (sport.toLowerCase().includes('skiing') || sport.toLowerCase().includes('ski'))) {
+      overallSkiing++;
+    }
+  });
+
+  if (overallRunning > 0 || overallCycling > 0 || overallSkiing > 0) {
+    if (overallRunning >= overallCycling && overallRunning >= overallSkiing) {
+      return 'running';
+    } else if (overallCycling >= overallRunning && overallCycling >= overallSkiing) {
+      return 'cycling';
+    } else {
+      return 'skiing';
+    }
+  }
+
+  return null;
 }
 
 // 1. Initialize from IndexedDB cache, then optionally load Google APIs
@@ -158,7 +314,11 @@ async function initFromCache() {
       }));
       sortActivities();
       showState('dashboard');
-      applyFiltersAndRender();
+      const defaultSport = getDefaultSport();
+      if (defaultSport && searchInput) {
+        searchInput.value = `sport=${defaultSport}`;
+      }
+      onSearchChanged(searchInput ? searchInput.value : '');
       updateStorageIndicator();
     }
   } catch (err) {
@@ -273,7 +433,13 @@ async function handleFilesAdded(fileList) {
   if (added > 0) {
     sortActivities();
     showState('dashboard');
-    applyFiltersAndRender();
+    if (!activeFilter.sport) {
+      const defaultSport = getDefaultSport();
+      if (defaultSport && searchInput) {
+        searchInput.value = updateSearchQueryWithSport(searchInput.value, defaultSport);
+      }
+    }
+    onSearchChanged(searchInput ? searchInput.value : '');
     updateStorageIndicator();
 
     // Background sync to Drive (fire-and-forget)
@@ -406,7 +572,13 @@ async function syncWithDrive() {
     if (pulled > 0) {
       sortActivities();
       showState('dashboard');
-      applyFiltersAndRender();
+      if (!activeFilter.sport) {
+        const defaultSport = getDefaultSport();
+        if (defaultSport && searchInput) {
+          searchInput.value = updateSearchQueryWithSport(searchInput.value, defaultSport);
+        }
+      }
+      onSearchChanged(searchInput ? searchInput.value : '');
       updateStorageIndicator();
     }
   } catch (err) {
@@ -603,6 +775,7 @@ function onSearchChanged(value) {
   selectedActivityId = null;
   activeFilter = parseSearchQuery(value);
   updateShortcutButtons();
+  updateSportFilterButtons();
   applyFiltersAndRender();
 }
 
@@ -628,25 +801,17 @@ function toggleSelectActivity(name) {
   applyFiltersAndRender();
 }
 
-/**
- * "This Year" shortcut — toggles date filter for current year.
- */
 function onThisYearClick() {
   selectedActivityId = null;
   const now = new Date();
   const yearStr = `${now.getFullYear()}`;
 
-  if (activeFilter.date === yearStr && !activeFilter.text) {
-    // Toggle off
-    if (searchInput) searchInput.value = '';
-    activeFilter = { id: null, date: null, text: null };
-  } else {
-    // Set year filter
-    if (searchInput) searchInput.value = yearStr;
-    activeFilter = { id: null, date: yearStr, text: null };
+  if (searchInput) {
+    const currentQuery = searchInput.value;
+    const newQuery = updateSearchQueryWithDate(currentQuery, yearStr);
+    searchInput.value = newQuery;
+    onSearchChanged(newQuery);
   }
-  updateShortcutButtons();
-  applyFiltersAndRender();
 }
 
 /**
@@ -657,17 +822,12 @@ function onThisMonthClick() {
   const now = new Date();
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  if (activeFilter.date === monthStr && !activeFilter.text) {
-    // Toggle off
-    if (searchInput) searchInput.value = '';
-    activeFilter = { id: null, date: null, text: null };
-  } else {
-    // Set month filter
-    if (searchInput) searchInput.value = monthStr;
-    activeFilter = { id: null, date: monthStr, text: null };
+  if (searchInput) {
+    const currentQuery = searchInput.value;
+    const newQuery = updateSearchQueryWithDate(currentQuery, monthStr);
+    searchInput.value = newQuery;
+    onSearchChanged(newQuery);
   }
-  updateShortcutButtons();
-  applyFiltersAndRender();
 }
 
 /**
@@ -686,7 +846,7 @@ function updateShortcutButtons() {
   }
 
   if (btnClear) {
-    const hasFilter = !!(activeFilter.id || activeFilter.date || activeFilter.text);
+    const hasFilter = !!(activeFilter.id || activeFilter.date || activeFilter.text || activeFilter.sport);
     if (hasFilter) {
       btnClear.removeAttribute('disabled');
       btnClear.classList.remove('disabled');
@@ -723,6 +883,18 @@ function applyFiltersAndRender() {
     if (activeFilter.text) {
       if (!matchesFuzzy(activeFilter.text, activity.displayName) &&
           !matchesFuzzy(activeFilter.text, activity.name)) return false;
+    }
+
+    // Sport filter
+    if (activeFilter.sport) {
+      if (activeFilter.sport === 'running') {
+        if (activity.sport !== 'running') return false;
+      } else if (activeFilter.sport === 'cycling') {
+        if (activity.sport !== 'cycling' && activity.sport !== 'e_biking') return false;
+      } else if (activeFilter.sport === 'skiing') {
+        const isSkiing = activity.sport && (activity.sport.toLowerCase().includes('skiing') || activity.sport.toLowerCase().includes('ski'));
+        if (!isSkiing) return false;
+      }
     }
 
     return true;
@@ -785,7 +957,10 @@ function renderActivities() {
     const distText = formatDistance(activity.distanceMeters);
 
     li.innerHTML = `
-      <span class="file-name-btn" role="button" tabindex="0">${escapeHtml(activity.displayName)}</span>
+      <div class="file-main">
+        ${getSportBadge(activity.sport)}
+        <span class="file-name-btn" role="button" tabindex="0">${escapeHtml(activity.displayName)}</span>
+      </div>
       <div class="file-meta">
         <button class="btn-delete-activity" title="Remove activity" data-name="${escapeHtml(activity.name)}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -817,6 +992,22 @@ function renderActivities() {
 }
 
 /**
+ * Constructs the HTML badge representing the sport type.
+ * @param {string|null} sport - The parsed sport string.
+ * @returns {string} HTML markup for the sport badge.
+ */
+function getSportBadge(sport) {
+  if (sport === 'running') {
+    return `<span class="sport-badge sport-running" title="Running">🏃 Run</span>`;
+  } else if (sport === 'cycling' || sport === 'e_biking') {
+    return `<span class="sport-badge sport-cycling" title="Cycling">🚴 Ride</span>`;
+  } else if (sport && (sport.toLowerCase().includes('skiing') || sport.toLowerCase().includes('ski'))) {
+    return `<span class="sport-badge sport-skiing" title="Skiing">🎿 Ski</span>`;
+  }
+  return `<span class="sport-badge sport-other" title="Other">🎯 Misc</span>`;
+}
+
+/**
  * Updates the filter status confirmation line.
  */
 function updateFilterStatus() {
@@ -831,6 +1022,9 @@ function updateFilterStatus() {
   }
   if (activeFilter.date) {
     parts.push(`date=${activeFilter.date}`);
+  }
+  if (activeFilter.sport) {
+    parts.push(`sport=${activeFilter.sport}`);
   }
   if (activeFilter.text) {
     parts.push(`name≈${activeFilter.text}`);
