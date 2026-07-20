@@ -1,4 +1,4 @@
-import { escapeHtml, formatDistance, formatMonth, parseSearchQuery, matchesFuzzy } from './utils/helpers.js';
+import { escapeHtml, formatDistance, formatMonth, parseSearchQuery, matchesFuzzy, cleanActivityName } from './utils/helpers.js';
 import {
   isConfigValid,
   loadGoogleApis,
@@ -392,7 +392,7 @@ function buildActivity(file, parsed) {
   return {
     // Drive metadata
     id: file.id,
-    name: file.name,
+    name: cleanActivityName(file.name),
     size: file.size,
     webViewLink: file.webViewLink,
     webContentLink: file.webContentLink,

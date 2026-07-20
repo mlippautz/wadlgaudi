@@ -123,3 +123,22 @@ export function parseSearchQuery(query) {
   const text = remaining.length > 0 ? remaining : null;
   return { id, date, text };
 }
+
+/**
+ * Clean activity filename if it matches <date>_<description>.<format>.
+ * Date matches YYYY-MM-DD, YYYYMMDD, YYYY.MM.DD, or YYYY_MM_DD.
+ * Optionally matches timestamp/time suffix.
+ * Returns only the <description>.
+ * @param {string} name - The original filename.
+ * @returns {string} The cleaned activity name description.
+ */
+export function cleanActivityName(name) {
+  if (!name) return '';
+  const regex = /^(\d{4}[-._]?\d{2}[-._]?\d{2})(?:[_\s-](?:\d{2}[:-]\d{2}[:-]\d{2}|\d{6}|\d{2}[_]\d{2}[_]\d{2}))?_(.+)\.([^.]+)$/;
+  const match = name.match(regex);
+  if (match) {
+    return match[2];
+  }
+  return name;
+}
+
