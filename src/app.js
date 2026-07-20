@@ -315,8 +315,15 @@ async function initFromCache() {
       sortActivities();
       showState('dashboard');
       const defaultSport = getDefaultSport();
-      if (defaultSport && searchInput) {
-        searchInput.value = `sport=${defaultSport}`;
+      const now = new Date();
+      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      let initialQuery = '';
+      if (defaultSport) {
+        initialQuery = `sport=${defaultSport}`;
+      }
+      initialQuery = updateSearchQueryWithDate(initialQuery, monthStr);
+      if (searchInput) {
+        searchInput.value = initialQuery;
       }
       onSearchChanged(searchInput ? searchInput.value : '');
       updateStorageIndicator();
@@ -433,11 +440,23 @@ async function handleFilesAdded(fileList) {
   if (added > 0) {
     sortActivities();
     showState('dashboard');
+    let query = searchInput ? searchInput.value : '';
+    let queryChanged = false;
     if (!activeFilter.sport) {
       const defaultSport = getDefaultSport();
-      if (defaultSport && searchInput) {
-        searchInput.value = updateSearchQueryWithSport(searchInput.value, defaultSport);
+      if (defaultSport) {
+        query = updateSearchQueryWithSport(query, defaultSport);
+        queryChanged = true;
       }
+    }
+    if (!activeFilter.date) {
+      const now = new Date();
+      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      query = updateSearchQueryWithDate(query, monthStr);
+      queryChanged = true;
+    }
+    if (queryChanged && searchInput) {
+      searchInput.value = query;
     }
     onSearchChanged(searchInput ? searchInput.value : '');
     updateStorageIndicator();
@@ -572,11 +591,23 @@ async function syncWithDrive() {
     if (pulled > 0) {
       sortActivities();
       showState('dashboard');
+      let query = searchInput ? searchInput.value : '';
+      let queryChanged = false;
       if (!activeFilter.sport) {
         const defaultSport = getDefaultSport();
-        if (defaultSport && searchInput) {
-          searchInput.value = updateSearchQueryWithSport(searchInput.value, defaultSport);
+        if (defaultSport) {
+          query = updateSearchQueryWithSport(query, defaultSport);
+          queryChanged = true;
         }
+      }
+      if (!activeFilter.date) {
+        const now = new Date();
+        const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        query = updateSearchQueryWithDate(query, monthStr);
+        queryChanged = true;
+      }
+      if (queryChanged && searchInput) {
+        searchInput.value = query;
       }
       onSearchChanged(searchInput ? searchInput.value : '');
       updateStorageIndicator();
