@@ -4,7 +4,6 @@
  * Uses the drive.appdata scope to access only the app's private folder.
  */
 
-let gapiApiLoaded = false;
 let gisLoaded = false;
 let tokenClient = null;
 let accessToken = null;
@@ -16,9 +15,7 @@ let accessToken = null;
 export function isConfigValid() {
   return (
     window.DRIVE_APP_CONFIG &&
-    DRIVE_APP_CONFIG.API_KEY &&
     DRIVE_APP_CONFIG.CLIENT_ID &&
-    DRIVE_APP_CONFIG.API_KEY !== "YOUR_GOOGLE_API_KEY" &&
     DRIVE_APP_CONFIG.CLIENT_ID !== "YOUR_GOOGLE_OAUTH_CLIENT_ID"
   );
 }
@@ -36,7 +33,7 @@ export function getAccessToken() {
  * @returns {boolean}
  */
 export function isSdkLoaded() {
-  return gapiApiLoaded && gisLoaded;
+  return gisLoaded;
 }
 
 /**
@@ -60,17 +57,6 @@ function loadScript(src) {
  * @returns {Promise<void>}
  */
 export async function loadGoogleApis(config) {
-  // Load GAPI (API Client) — no Picker needed
-  await loadScript('https://apis.google.com/js/api.js');
-  await new Promise((resolve) => gapi.load('client', resolve));
-
-  // Initialize GAPI
-  await gapi.client.init({
-    apiKey: config.API_KEY,
-    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-  });
-  gapiApiLoaded = true;
-
   // Load GIS (Identity Services)
   await loadScript('https://accounts.google.com/gsi/client');
   tokenClient = google.accounts.oauth2.initTokenClient({
@@ -146,10 +132,6 @@ export function handleSignout() {
   }
 
   accessToken = null;
-  if (window.gapi && gapi.client) {
-    gapi.client.setToken(null);
-  }
-  
   localStorage.removeItem('drive_sync_token');
   localStorage.removeItem('drive_sync_token_expiry');
 }
@@ -159,16 +141,28 @@ export function handleSignout() {
  * @returns {Promise<Array>} List of file objects.
  */
 export async function listAppDataFiles() {
-  if (!gapiApiLoaded) throw new Error('Google Drive SDK not loaded.');
+  if (!gisLoaded) throw new Error('Google Identity Services SDK not loaded.');
+  if (!accessToken) throw new Error('Not authenticated.');
 
-  const response = await gapi.client.drive.files.list({
+  const url = 'https://www.googleapis.com/drive/v3/files?' + new URLSearchParams({
     spaces: 'appDataFolder',
     fields: 'files(id, name, size, modifiedTime)',
     orderBy: 'modifiedTime desc',
-    pageSize: 200
+    pageSize: '200'
   });
 
-  return response.result.files || [];
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`List failed (${response.status})`);
+  }
+  const data = await response.json();
+  return data.files || [];
 }
 
 /**
@@ -197,5 +191,16 @@ export async function uploadFileToAppData(name, arrayBuffer) {
  * @param {string} fileId - The unique Google Drive file ID.
  */
 export async function deleteAppDataFile(fileId) {
-  await gapi.client.drive.files.delete({ fileId });
+  if (!accessToken) throw new Error('Not authenticated.');
+
+  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Delete failed (${response.status})`);
+  }
 }

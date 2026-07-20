@@ -25,7 +25,7 @@ jobs:
           cache: 'pnpm'
       - name: Create config.js from secrets
         run: |
-          echo "window.DRIVE_APP_CONFIG = { API_KEY: '${{ secrets.GOOGLE_API_KEY }}', CLIENT_ID: '${{ secrets.GOOGLE_CLIENT_ID }}' };" > public/config.js
+          echo "window.DRIVE_APP_CONFIG = { CLIENT_ID: '${{ secrets.GOOGLE_CLIENT_ID }}' };" > public/config.js
       - name: Install and Build
         run: |
           pnpm install
