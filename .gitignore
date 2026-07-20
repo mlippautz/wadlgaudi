@@ -9,3 +9,7 @@ node_modules/
 .DS_Store
 dist/
 dev.log
+
+# Agent local configuration/symlinks
+.agents
+
