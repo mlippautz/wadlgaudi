@@ -629,12 +629,120 @@ body {
   border-width: 1.5px;
 }
 
+/* Floating View Toggle Button (Mobile Only) */
+.btn-view-toggle {
+  display: none;
+}
+
 /* Responsive Overrides */
 @media (max-width: 900px) {
   body {
     padding: 1rem;
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
   }
   
+  .app-container {
+    height: 100%;
+    gap: 1rem;
+  }
+
+  .app-main {
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .dashboard-view {
+    position: relative;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .dashboard-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  .sidebar, .map-view {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s;
+  }
+
+  /* Default state on mobile: Show list (sidebar), hide map */
+  .sidebar {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+    z-index: 10;
+  }
+
+  .map-view {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(20px);
+    z-index: 1;
+  }
+
+  /* Toggled state on mobile: Show map, hide list */
+  .dashboard-view.show-map .sidebar {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-20px);
+    z-index: 1;
+  }
+
+  .dashboard-view.show-map .map-view {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+    z-index: 10;
+  }
+
+  .btn-view-toggle {
+    display: flex;
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2000;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 30px;
+    background: rgba(10, 10, 10, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .btn-view-toggle:hover {
+    background: #111111;
+    border-color: var(--text-color);
+    transform: translateX(-50%) scale(1.05);
+  }
+
+  .btn-view-toggle svg {
+    flex-shrink: 0;
+  }
+
   .app-header {
     flex-direction: column;
     align-items: flex-start;
@@ -647,23 +755,8 @@ body {
     justify-content: space-between;
   }
   
-  .dashboard-content {
-    flex-direction: column;
-    height: auto;
-    gap: 1.5rem;
-  }
-  
-  .sidebar {
-    width: 100%;
-    height: 350px;
-  }
-  
-  .map-view {
-    height: 450px;
-  }
-  
-  .file-name-link {
-    max-width: 350px;
+  .file-name-btn {
+    max-width: 200px;
   }
 
   .sidebar-controls {

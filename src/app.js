@@ -76,6 +76,21 @@ function setupEventListeners() {
       clearSearch();
     }
   });
+
+  // Floating view toggle on mobile
+  const btnViewToggle = document.getElementById('btn-view-toggle');
+  if (btnViewToggle) {
+    btnViewToggle.addEventListener('click', () => {
+      const dashboard = document.getElementById('dashboard-view');
+      if (dashboard) {
+        const isMapShown = dashboard.classList.toggle('show-map');
+        const toggleText = document.getElementById('toggle-text');
+        if (toggleText) {
+          toggleText.textContent = isMapShown ? 'Show List' : 'Show Map';
+        }
+      }
+    });
+  }
 }
 
 /**
@@ -224,6 +239,11 @@ function showState(activeState) {
   const dashboard = document.getElementById('dashboard-view');
   if (activeState === 'dashboard') {
     dashboard.classList.remove('hidden');
+    dashboard.classList.remove('show-map');
+    const toggleText = document.getElementById('toggle-text');
+    if (toggleText) {
+      toggleText.textContent = 'Show Map';
+    }
     // Initialize map on dashboard load and invalidate size so it recalculates container bounds
     setTimeout(() => {
       initMap();
@@ -411,6 +431,16 @@ function toggleSelectActivity(id) {
     const query = `id:${id}`;
     if (searchInput) searchInput.value = query;
     onSearchChanged(query);
+
+    // Auto-switch to Map view on mobile when selecting an activity
+    const dashboard = document.getElementById('dashboard-view');
+    if (window.innerWidth <= 900 && dashboard && !dashboard.classList.contains('show-map')) {
+      dashboard.classList.add('show-map');
+      const toggleText = document.getElementById('toggle-text');
+      if (toggleText) {
+        toggleText.textContent = 'Show List';
+      }
+    }
   }
 }
 

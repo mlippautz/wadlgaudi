@@ -296,6 +296,17 @@ export function initMap(elementId = 'map') {
   // Create Leaflet map container
   map = L.map(elementId).setView([47.0, 11.0], 7); // Default zoom center (European Alps / generic)
 
+  // Observe map element size changes (modern replacement for window resize listeners)
+  const mapElement = document.getElementById(elementId);
+  if (mapElement) {
+    const resizeObserver = new ResizeObserver(() => {
+      if (map) {
+        map.invalidateSize();
+      }
+    });
+    resizeObserver.observe(mapElement);
+  }
+
   // Load the initial saved base map or fallback to dark
   currentBaseKey = localStorage.getItem('wadlgaudi_base_layer') || 'dark';
   setBaseLayer(currentBaseKey);
