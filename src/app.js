@@ -356,6 +356,10 @@ async function initFromCache() {
 
 // 2. Authentication Flow wrappers
 function executeAuthFlow() {
+  if (!isConfigValid()) {
+    showError('API credentials missing. Please configure config.js.');
+    return;
+  }
   handleAuth({
     onStatus: (msg) => setLoadingStatus(msg),
     onSuccess: () => {
