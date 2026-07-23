@@ -1,4 +1,4 @@
-import { escapeHtml, formatDistance, formatMonth, formatBytes, parseSearchQuery, matchesFuzzy, cleanActivityName } from './utils/helpers.js';
+import { escapeHtml, formatDistance, formatMonth, formatBytes, parseSearchQuery, matchesFuzzy, cleanActivityName, updateSearchQueryWithSport, updateSearchQueryWithDate } from './utils/helpers.js';
 import {
   isConfigValid,
   loadGoogleApis,
@@ -30,7 +30,7 @@ import {
 let allActivities = [];       // Enriched activity objects (parsed FIT data)
 let filteredActivities = [];   // Currently displayed subset after filtering
 let activeFilter = { id: null, date: null, text: null, sport: null };  // Parsed filter state
-let selectedActivityId = null; // Currently selected unique activity name (filename)
+// Note: activity selection is stored in activeFilter.id (via the id= token in the search bar).
 
 // DOM Elements
 const btnAuth = document.getElementById('btn-auth');
@@ -144,101 +144,48 @@ function setupEventListeners() {
 }
 
 function clearSearch() {
-  selectedActivityId = null;
-  if (searchInput) {
-    searchInput.value = '';
-  }
-  onSearchChanged('');
+  setSearchQuery('');
 }
 
 function setSportFilter(sport) {
-  selectedActivityId = null; // Clear individual selection
-  if (searchInput) {
-    const currentQuery = searchInput.value;
-    const newQuery = updateSearchQueryWithSport(currentQuery, sport);
-    searchInput.value = newQuery;
-    onSearchChanged(newQuery);
-  }
+  const currentQuery = searchInput ? searchInput.value : '';
+  setSearchQuery(updateSearchQueryWithSport(currentQuery, sport));
 }
 
 /**
- * Temporarily removes the id= token from a query so that other manipulations
- * (date/sport) do not accidentally match content inside the filename.
- * @param {string} query
- * @returns {{ idToken: string|null, remaining: string }}
+ * The single canonical way to update the active search query.
+ * Writes to the search bar input and triggers the full filter pipeline.
+ * All filter mutations (buttons, activity clicks, programmatic defaults) must
+ * go through this function so the search bar stays the single source of truth.
+ * @param {string} newQuery
  */
-function extractIdToken(query) {
-  const idRegex = /\bid[=:]\s*(?:"[^"]*"|'[^']*'|[A-Za-z0-9_.%-]+)/i;
-  const match = query.match(idRegex);
-  if (match) {
-    const remaining = query.replace(match[0], '').replace(/\s+/g, ' ').trim();
-    return { idToken: match[0], remaining };
-  }
-  return { idToken: null, remaining: query };
+function setSearchQuery(newQuery) {
+  if (searchInput) searchInput.value = newQuery;
+  onSearchChanged(newQuery);
 }
 
 /**
- * Updates a search query string to add, replace, or toggle a sport filter parameter.
- * @param {string} query - The current search query.
- * @param {string|null} targetSport - The sport to set (running, cycling, skiing, or null to clear).
- * @returns {string} The updated search query.
+ * Applies smart default filters to a query string when no sport or date filter
+ * is already active.  Must be called after allActivities is populated.
+ * Returns the (possibly modified) query string — does NOT write to the search
+ * bar or call onSearchChanged itself.
+ * @param {string} currentQuery
+ * @returns {string} The query with defaults applied.
  */
-function updateSearchQueryWithSport(query, targetSport) {
-  // Shield the id= token so its value is never matched by the sport regex.
-  const { idToken, remaining: base } = extractIdToken(query);
-
-  const sportRegex = /\bsport[=:]\s*["']?([A-Za-z0-9_-]+)["']?/i;
-  const match = base.match(sportRegex);
-
-  let result;
-  if (targetSport === null) {
-    result = match ? base.replace(sportRegex, '').replace(/\s+/g, ' ').trim() : base.trim();
-  } else if (match) {
-    // If the active sport matches, toggle it off by removing it
-    if (match[1].toLowerCase() === targetSport.toLowerCase()) {
-      result = base.replace(sportRegex, '').replace(/\s+/g, ' ').trim();
-    } else {
-      // Otherwise, replace it with the new sport
-      result = base.replace(sportRegex, `sport=${targetSport}`).trim();
+function applyDefaultFilters(currentQuery) {
+  let query = currentQuery;
+  if (!activeFilter.sport) {
+    const defaultSport = getDefaultSport();
+    if (defaultSport) {
+      query = updateSearchQueryWithSport(query, defaultSport);
     }
-  } else {
-    // Append new sport filter
-    result = base.trim() ? `${base.trim()} sport=${targetSport}` : `sport=${targetSport}`;
   }
-
-  return idToken ? (result ? `${result} ${idToken}` : idToken) : result;
-}
-
-/**
- * Updates a search query string to add, replace, or toggle a date filter parameter.
- * @param {string} query - The current search query.
- * @param {string|null} targetDate - The date string to set (YYYY, YYYY-MM, or null to clear).
- * @returns {string} The updated search query.
- */
-function updateSearchQueryWithDate(query, targetDate) {
-  // Shield the id= token so its value is never matched by the date regex.
-  const { idToken, remaining: base } = extractIdToken(query);
-
-  const dateRegex = /\b(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/;
-  const match = base.match(dateRegex);
-
-  let result;
-  if (targetDate === null) {
-    result = match ? base.replace(dateRegex, '').replace(/\s+/g, ' ').trim() : base.trim();
-  } else if (match) {
-    // If the active date matches, toggle it off by removing it
-    if (match[1] === targetDate) {
-      result = base.replace(dateRegex, '').replace(/\s+/g, ' ').trim();
-    } else {
-      // Otherwise, replace it with the new date
-      result = base.replace(dateRegex, targetDate).trim();
-    }
-  } else {
-    // Append new date filter
-    result = base.trim() ? `${base.trim()} ${targetDate}` : targetDate;
+  if (!activeFilter.date) {
+    const now = new Date();
+    const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    query = updateSearchQueryWithDate(query, monthStr);
   }
-
-  return idToken ? (result ? `${result} ${idToken}` : idToken) : result;
+  return query;
 }
 
 /**
@@ -334,18 +281,8 @@ async function initFromCache() {
       }));
       sortActivities();
       showState('dashboard');
-      const defaultSport = getDefaultSport();
-      const now = new Date();
-      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      let initialQuery = '';
-      if (defaultSport) {
-        initialQuery = `sport=${defaultSport}`;
-      }
-      initialQuery = updateSearchQueryWithDate(initialQuery, monthStr);
-      if (searchInput) {
-        searchInput.value = initialQuery;
-      }
-      onSearchChanged(searchInput ? searchInput.value : '');
+      const initialQuery = applyDefaultFilters('');
+      setSearchQuery(initialQuery);
       updateStorageIndicator();
     }
   } catch (err) {
@@ -464,25 +401,9 @@ async function handleFilesAdded(fileList) {
   if (added > 0) {
     sortActivities();
     showState('dashboard');
-    let query = searchInput ? searchInput.value : '';
-    let queryChanged = false;
-    if (!activeFilter.sport) {
-      const defaultSport = getDefaultSport();
-      if (defaultSport) {
-        query = updateSearchQueryWithSport(query, defaultSport);
-        queryChanged = true;
-      }
-    }
-    if (!activeFilter.date) {
-      const now = new Date();
-      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      query = updateSearchQueryWithDate(query, monthStr);
-      queryChanged = true;
-    }
-    if (queryChanged && searchInput) {
-      searchInput.value = query;
-    }
-    onSearchChanged(searchInput ? searchInput.value : '');
+    const currentQuery = searchInput ? searchInput.value : '';
+    const newQuery = applyDefaultFilters(currentQuery);
+    setSearchQuery(newQuery);
     updateStorageIndicator();
 
     // Background sync to Drive (fire-and-forget)
@@ -615,25 +536,9 @@ async function syncWithDrive() {
     if (pulled > 0) {
       sortActivities();
       showState('dashboard');
-      let query = searchInput ? searchInput.value : '';
-      let queryChanged = false;
-      if (!activeFilter.sport) {
-        const defaultSport = getDefaultSport();
-        if (defaultSport) {
-          query = updateSearchQueryWithSport(query, defaultSport);
-          queryChanged = true;
-        }
-      }
-      if (!activeFilter.date) {
-        const now = new Date();
-        const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        query = updateSearchQueryWithDate(query, monthStr);
-        queryChanged = true;
-      }
-      if (queryChanged && searchInput) {
-        searchInput.value = query;
-      }
-      onSearchChanged(searchInput ? searchInput.value : '');
+      const currentQuery = searchInput ? searchInput.value : '';
+      const newQuery = applyDefaultFilters(currentQuery);
+      setSearchQuery(newQuery);
       updateStorageIndicator();
     }
   } catch (err) {
@@ -828,9 +733,6 @@ function sortActivities() {
  */
 function onSearchChanged(value) {
   activeFilter = parseSearchQuery(value);
-  // Keep selectedActivityId in sync with the id= token in the search bar.
-  // This makes the search bar the single source of truth for all filters.
-  selectedActivityId = activeFilter.id ?? null;
   updateShortcutButtons();
   updateSportFilterButtons();
   applyFiltersAndRender();
@@ -843,7 +745,7 @@ function onSearchChanged(value) {
  */
 function toggleSelectActivity(name) {
   const currentQuery = searchInput ? searchInput.value : '';
-  const isAlreadySelected = selectedActivityId === name;
+  const isAlreadySelected = activeFilter.id === name;
 
   // Build the id token with the filename quoted so spaces/dots are preserved.
   const idToken = `id="${name}"`;
@@ -863,8 +765,7 @@ function toggleSelectActivity(name) {
     }
   }
 
-  if (searchInput) searchInput.value = newQuery;
-  onSearchChanged(newQuery);
+  setSearchQuery(newQuery);
 
   // Auto-switch to Map view on mobile when selecting an activity.
   if (!isAlreadySelected) {
@@ -880,32 +781,20 @@ function toggleSelectActivity(name) {
 }
 
 function onThisYearClick() {
-  selectedActivityId = null;
   const now = new Date();
   const yearStr = `${now.getFullYear()}`;
-
-  if (searchInput) {
-    const currentQuery = searchInput.value;
-    const newQuery = updateSearchQueryWithDate(currentQuery, yearStr);
-    searchInput.value = newQuery;
-    onSearchChanged(newQuery);
-  }
+  const currentQuery = searchInput ? searchInput.value : '';
+  setSearchQuery(updateSearchQueryWithDate(currentQuery, yearStr));
 }
 
 /**
  * "This Month" shortcut — toggles date filter for current month.
  */
 function onThisMonthClick() {
-  selectedActivityId = null;
   const now = new Date();
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-  if (searchInput) {
-    const currentQuery = searchInput.value;
-    const newQuery = updateSearchQueryWithDate(currentQuery, monthStr);
-    searchInput.value = newQuery;
-    onSearchChanged(newQuery);
-  }
+  const currentQuery = searchInput ? searchInput.value : '';
+  setSearchQuery(updateSearchQueryWithDate(currentQuery, monthStr));
 }
 
 /**
@@ -941,7 +830,7 @@ function updateShortcutButtons() {
 function applyFiltersAndRender() {
   filteredActivities = allActivities.filter(activity => {
     // Single activity selection filter
-    if (selectedActivityId && activity.name !== selectedActivityId) return false;
+    if (activeFilter.id && activity.name !== activeFilter.id) return false;
 
     // Date filter
     if (activeFilter.date) {
@@ -1002,7 +891,7 @@ function renderActivities() {
   }
 
   // Manage selection class on parent list
-  if (selectedActivityId) {
+  if (activeFilter.id) {
     filesList.classList.add('has-selection');
   } else {
     filesList.classList.remove('has-selection');
@@ -1028,7 +917,7 @@ function renderActivities() {
     // Render activity item
     const li = document.createElement('li');
     li.className = 'file-item';
-    if (selectedActivityId === activity.name) {
+    if (activeFilter.id === activity.name) {
       li.classList.add('selected');
     }
 
@@ -1092,8 +981,8 @@ function updateFilterStatus() {
   if (!filterStatusEl) return;
 
   const parts = [];
-  if (selectedActivityId) {
-    const selected = allActivities.find(a => a.name === selectedActivityId);
+  if (activeFilter.id) {
+    const selected = allActivities.find(a => a.name === activeFilter.id);
     if (selected) {
       parts.push(`activity="${selected.displayName}"`);
     }

@@ -151,3 +151,83 @@ export function cleanActivityName(name) {
   return name;
 }
 
+
+/**
+ * Temporarily removes the id= token from a query so that other manipulations
+ * (date/sport) do not accidentally match content inside the filename.
+ * @param {string} query
+ * @returns {{ idToken: string|null, remaining: string }}
+ */
+export function extractIdToken(query) {
+  const idRegex = /\bid[=:]\s*(?:"[^"]*"|'[^']*'|[A-Za-z0-9_.%-]+)/i;
+  const match = query.match(idRegex);
+  if (match) {
+    const remaining = query.replace(match[0], '').replace(/\s+/g, ' ').trim();
+    return { idToken: match[0], remaining };
+  }
+  return { idToken: null, remaining: query };
+}
+
+/**
+ * Updates a search query string to add, replace, or toggle a sport filter parameter.
+ * @param {string} query - The current search query.
+ * @param {string|null} targetSport - The sport to set (running, cycling, skiing, or null to clear).
+ * @returns {string} The updated search query.
+ */
+export function updateSearchQueryWithSport(query, targetSport) {
+  // Shield the id= token so its value is never matched by the sport regex.
+  const { idToken, remaining: base } = extractIdToken(query);
+
+  const sportRegex = /\bsport[=:]\s*["']?([A-Za-z0-9_-]+)["']?/i;
+  const match = base.match(sportRegex);
+
+  let result;
+  if (targetSport === null) {
+    result = match ? base.replace(sportRegex, '').replace(/\s+/g, ' ').trim() : base.trim();
+  } else if (match) {
+    // If the active sport matches, toggle it off by removing it
+    if (match[1].toLowerCase() === targetSport.toLowerCase()) {
+      result = base.replace(sportRegex, '').replace(/\s+/g, ' ').trim();
+    } else {
+      // Otherwise, replace it with the new sport
+      result = base.replace(sportRegex, `sport=${targetSport}`).trim();
+    }
+  } else {
+    // Append new sport filter
+    result = base.trim() ? `${base.trim()} sport=${targetSport}` : `sport=${targetSport}`;
+  }
+
+  return idToken ? (result ? `${result} ${idToken}` : idToken) : result;
+}
+
+/**
+ * Updates a search query string to add, replace, or toggle a date filter parameter.
+ * @param {string} query - The current search query.
+ * @param {string|null} targetDate - The date string to set (YYYY, YYYY-MM, or null to clear).
+ * @returns {string} The updated search query.
+ */
+export function updateSearchQueryWithDate(query, targetDate) {
+  // Shield the id= token so its value is never matched by the date regex.
+  const { idToken, remaining: base } = extractIdToken(query);
+
+  const dateRegex = /\b(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/;
+  const match = base.match(dateRegex);
+
+  let result;
+  if (targetDate === null) {
+    result = match ? base.replace(dateRegex, '').replace(/\s+/g, ' ').trim() : base.trim();
+  } else if (match) {
+    // If the active date matches, toggle it off by removing it
+    if (match[1] === targetDate) {
+      result = base.replace(dateRegex, '').replace(/\s+/g, ' ').trim();
+    } else {
+      // Otherwise, replace it with the new date
+      result = base.replace(dateRegex, targetDate).trim();
+    }
+  } else {
+    // Append new date filter
+    result = base.trim() ? `${base.trim()} ${targetDate}` : targetDate;
+  }
+
+  return idToken ? (result ? `${result} ${idToken}` : idToken) : result;
+}
