@@ -69,6 +69,11 @@
         <div class="dashboard-content">
           <!-- Files List Sidebar -->
           <aside class="sidebar">
+            <!-- View Tab Bar -->
+            <nav class="view-tabs" id="view-tabs">
+              <button class="view-tab active" data-view="overview" id="tab-overview">Overview</button>
+              <button class="view-tab" data-view="heatmap" id="tab-heatmap">Heatmap</button>
+            </nav>
             <h3 class="sidebar-title">Activities</h3>
             <div class="sidebar-controls">
               <div class="search-wrapper">
@@ -104,9 +109,14 @@
             </div>
           </aside>
 
-          <!-- Map View Main Area -->
-          <section class="map-view">
-            <div id="map" class="map-container"></div>
+          <!-- View Content Area -->
+          <section class="views-area">
+            <div id="view-overview" class="view-panel">
+              <div id="map" class="map-container"></div>
+            </div>
+            <div id="view-heatmap" class="view-panel hidden">
+              <!-- populated by views/heatmap.js -->
+            </div>
           </section>
         </div>
 

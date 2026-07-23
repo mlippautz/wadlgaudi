@@ -12,7 +12,8 @@ import {
   deleteAppDataFile,
 } from './services/google.js';
 import { downloadFileContent, parseFitData } from './services/fit.js';
-import { initMap, clearPaths, drawRoute, invalidateMapSize, fitMapToRoutes } from './services/map.js';
+import { initOverview, renderOverview } from './views/overview.js';
+import { initHeatmap, renderHeatmap } from './views/heatmap.js';
 import {
   storeFile,
   getFile,
@@ -31,6 +32,46 @@ let allActivities = [];       // Enriched activity objects (parsed FIT data)
 let filteredActivities = [];   // Currently displayed subset after filtering
 let activeFilter = { id: null, date: null, text: null, sport: null };  // Parsed filter state
 // Note: activity selection is stored in activeFilter.id (via the id= token in the search bar).
+
+// View Router
+let activeView = 'overview';
+
+/**
+ * Registry of available data views.
+ * Each entry exposes: label (mobile toggle text), init(), render(activities).
+ */
+const views = {
+  overview: { label: 'Map',     init: initOverview, render: renderOverview },
+  heatmap:  { label: 'Heatmap', init: initHeatmap,  render: renderHeatmap  },
+};
+
+/**
+ * Switches the active view, updates tab styles, updates the mobile toggle
+ * label, and (lazily) initialises + re-renders the target view.
+ * @param {string} viewName - Key from the `views` registry.
+ */
+function switchView(viewName) {
+  if (!views[viewName]) return;
+
+  // Swap visible panel
+  document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+  const panel = document.getElementById(`view-${viewName}`);
+  if (panel) panel.classList.remove('hidden');
+
+  // Update tab active state
+  document.querySelectorAll('.view-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.view === viewName));
+
+  activeView = viewName;
+
+  // Update mobile toggle label to reflect the active view
+  const toggleText = document.getElementById('toggle-text');
+  if (toggleText) toggleText.textContent = `Show ${views[viewName].label}`;
+
+  // Lazy init + render
+  views[viewName].init();
+  views[viewName].render(filteredActivities);
+}
 
 // DOM Elements
 const btnAuth = document.getElementById('btn-auth');
@@ -127,16 +168,21 @@ function setupEventListeners() {
     }
   });
 
+  // View tab switching
+  document.querySelectorAll('.view-tab').forEach(tab => {
+    tab.addEventListener('click', () => switchView(tab.dataset.view));
+  });
+
   // Floating view toggle on mobile
   const btnViewToggle = document.getElementById('btn-view-toggle');
   if (btnViewToggle) {
     btnViewToggle.addEventListener('click', () => {
       const dashboard = document.getElementById('dashboard-view');
       if (dashboard) {
-        const isMapShown = dashboard.classList.toggle('show-map');
+        const isViewShown = dashboard.classList.toggle('show-map');
         const toggleText = document.getElementById('toggle-text');
         if (toggleText) {
-          toggleText.textContent = isMapShown ? 'Show List' : 'Show Map';
+          toggleText.textContent = isViewShown ? 'Show List' : `Show ${views[activeView].label}`;
         }
       }
     });
@@ -650,13 +696,8 @@ function showState(activeState) {
   if (activeState === 'dashboard') {
     dashboard.classList.remove('hidden');
     dashboard.classList.remove('show-map');
-    const toggleText = document.getElementById('toggle-text');
-    if (toggleText) {
-      toggleText.textContent = 'Show Map';
-    }
-    // Initialize map synchronously on dashboard load
-    initMap();
-    invalidateMapSize();
+    // Activate the current view (init + render)
+    switchView(activeView);
   } else {
     dashboard.classList.add('hidden');
   }
@@ -870,7 +911,7 @@ function applyFiltersAndRender() {
   renderActivities();
   updateFilterStatus();
   updateAggregate();
-  renderMapRoutes();
+  views[activeView].render(filteredActivities);
 }
 
 // 9. Rendering
@@ -1021,15 +1062,3 @@ function updateAggregate() {
   }
 }
 
-/**
- * Draws routes on the map for all filtered activities.
- */
-function renderMapRoutes() {
-  clearPaths();
-  filteredActivities.forEach(activity => {
-    if (activity.coordinates && activity.coordinates.length > 1) {
-      drawRoute(activity.coordinates, activity.distanceMeters);
-    }
-  });
-  fitMapToRoutes();
-}

@@ -367,10 +367,20 @@ body {
   user-select: none;
 }
 
-/* Map Section */
-.map-view {
+/* View Content Area */
+.views-area {
   flex: 1;
   height: 100%;
+  position: relative;
+  min-width: 0;
+}
+
+/* View Panels — only one visible at a time */
+.view-panel {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
 }
 
 .map-container {
@@ -379,6 +389,64 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   background-color: #080808;
+}
+
+/* View Tab Bar */
+.view-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.view-tab {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+  margin-bottom: -1px; /* overlap the nav border-bottom */
+}
+
+.view-tab:hover {
+  color: var(--text-color);
+}
+
+.view-tab.active {
+  color: var(--text-color);
+  border-bottom-color: var(--text-color);
+}
+
+/* Heatmap placeholder (shown until heatmap is implemented) */
+.heatmap-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 0.75rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  background-color: #030303;
+}
+
+.heatmap-placeholder-icon {
+  font-size: 2.5rem;
+  opacity: 0.5;
+}
+
+.heatmap-placeholder-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 /* Helper Utilities */
@@ -650,7 +718,7 @@ body {
     gap: 0;
   }
 
-  .sidebar, .map-view {
+  .sidebar, .views-area {
     position: absolute;
     top: 0;
     left: 0;
@@ -667,14 +735,14 @@ body {
     z-index: 10;
   }
 
-  .map-view {
+  .views-area {
     opacity: 0;
     visibility: hidden;
     transform: translateX(20px);
     z-index: 1;
   }
 
-  /* Toggled state on mobile: Show map, hide list */
+  /* Toggled state on mobile: Show view, hide list */
   .dashboard-view.show-map .sidebar {
     opacity: 0;
     visibility: hidden;
@@ -682,7 +750,7 @@ body {
     z-index: 1;
   }
 
-  .dashboard-view.show-map .map-view {
+  .dashboard-view.show-map .views-area {
     opacity: 1;
     visibility: visible;
     transform: translateX(0);
