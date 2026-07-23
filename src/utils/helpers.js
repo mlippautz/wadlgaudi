@@ -105,10 +105,11 @@ export function parseSearchQuery(query) {
   let sport = null;
   let remaining = trimmed;
   
-  // 1. Match and extract ID pattern: id=123, id:123, id="123", id:'123'
-  const idMatch = remaining.match(/\bid[=:]\s*["']?([A-Za-z0-9_-]+)["']?/i);
+  // 1. Match and extract ID pattern: id=123, id:123, id="some name.fit", id:'some name.fit'
+  // Supports quoted values (to handle filenames with spaces/dots) and bare alphanumeric tokens.
+  const idMatch = remaining.match(/\bid[=:]\s*(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9_.%-]+))/i);
   if (idMatch) {
-    id = idMatch[1];
+    id = idMatch[1] ?? idMatch[2] ?? idMatch[3];
     // Remove the match and clean up extra whitespace
     remaining = remaining.replace(idMatch[0], '').replace(/\s+/g, ' ').trim();
   }

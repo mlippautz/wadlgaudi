@@ -162,33 +162,51 @@ function setSportFilter(sport) {
 }
 
 /**
+ * Temporarily removes the id= token from a query so that other manipulations
+ * (date/sport) do not accidentally match content inside the filename.
+ * @param {string} query
+ * @returns {{ idToken: string|null, remaining: string }}
+ */
+function extractIdToken(query) {
+  const idRegex = /\bid[=:]\s*(?:"[^"]*"|'[^']*'|[A-Za-z0-9_.%-]+)/i;
+  const match = query.match(idRegex);
+  if (match) {
+    const remaining = query.replace(match[0], '').replace(/\s+/g, ' ').trim();
+    return { idToken: match[0], remaining };
+  }
+  return { idToken: null, remaining: query };
+}
+
+/**
  * Updates a search query string to add, replace, or toggle a sport filter parameter.
  * @param {string} query - The current search query.
  * @param {string|null} targetSport - The sport to set (running, cycling, skiing, or null to clear).
  * @returns {string} The updated search query.
  */
 function updateSearchQueryWithSport(query, targetSport) {
+  // Shield the id= token so its value is never matched by the sport regex.
+  const { idToken, remaining: base } = extractIdToken(query);
+
   const sportRegex = /\bsport[=:]\s*["']?([A-Za-z0-9_-]+)["']?/i;
-  const match = query.match(sportRegex);
+  const match = base.match(sportRegex);
 
+  let result;
   if (targetSport === null) {
-    if (match) {
-      return query.replace(sportRegex, '').replace(/\s+/g, ' ').trim();
-    }
-    return query.trim();
-  }
-
-  if (match) {
+    result = match ? base.replace(sportRegex, '').replace(/\s+/g, ' ').trim() : base.trim();
+  } else if (match) {
     // If the active sport matches, toggle it off by removing it
     if (match[1].toLowerCase() === targetSport.toLowerCase()) {
-      return query.replace(sportRegex, '').replace(/\s+/g, ' ').trim();
+      result = base.replace(sportRegex, '').replace(/\s+/g, ' ').trim();
+    } else {
+      // Otherwise, replace it with the new sport
+      result = base.replace(sportRegex, `sport=${targetSport}`).trim();
     }
-    // Otherwise, replace it with the new sport
-    return query.replace(sportRegex, `sport=${targetSport}`).trim();
+  } else {
+    // Append new sport filter
+    result = base.trim() ? `${base.trim()} sport=${targetSport}` : `sport=${targetSport}`;
   }
 
-  // Append new sport filter
-  return query.trim() ? `${query.trim()} sport=${targetSport}` : `sport=${targetSport}`;
+  return idToken ? (result ? `${result} ${idToken}` : idToken) : result;
 }
 
 /**
@@ -198,27 +216,29 @@ function updateSearchQueryWithSport(query, targetSport) {
  * @returns {string} The updated search query.
  */
 function updateSearchQueryWithDate(query, targetDate) {
+  // Shield the id= token so its value is never matched by the date regex.
+  const { idToken, remaining: base } = extractIdToken(query);
+
   const dateRegex = /\b(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b/;
-  const match = query.match(dateRegex);
+  const match = base.match(dateRegex);
 
+  let result;
   if (targetDate === null) {
-    if (match) {
-      return query.replace(dateRegex, '').replace(/\s+/g, ' ').trim();
-    }
-    return query.trim();
-  }
-
-  if (match) {
+    result = match ? base.replace(dateRegex, '').replace(/\s+/g, ' ').trim() : base.trim();
+  } else if (match) {
     // If the active date matches, toggle it off by removing it
     if (match[1] === targetDate) {
-      return query.replace(dateRegex, '').replace(/\s+/g, ' ').trim();
+      result = base.replace(dateRegex, '').replace(/\s+/g, ' ').trim();
+    } else {
+      // Otherwise, replace it with the new date
+      result = base.replace(dateRegex, targetDate).trim();
     }
-    // Otherwise, replace it with the new date
-    return query.replace(dateRegex, targetDate).trim();
+  } else {
+    // Append new date filter
+    result = base.trim() ? `${base.trim()} ${targetDate}` : targetDate;
   }
 
-  // Append new date filter
-  return query.trim() ? `${query.trim()} ${targetDate}` : targetDate;
+  return idToken ? (result ? `${result} ${idToken}` : idToken) : result;
 }
 
 /**
@@ -807,23 +827,47 @@ function sortActivities() {
  * Handles search input changes — parses query and applies filters.
  */
 function onSearchChanged(value) {
-  selectedActivityId = null;
   activeFilter = parseSearchQuery(value);
+  // Keep selectedActivityId in sync with the id= token in the search bar.
+  // This makes the search bar the single source of truth for all filters.
+  selectedActivityId = activeFilter.id ?? null;
   updateShortcutButtons();
   updateSportFilterButtons();
   applyFiltersAndRender();
 }
 
 /**
- * Toggles single activity selection. Updates search input text to id:<id>.
+ * Toggles single activity selection by writing an id=\"...\" token into the
+ * search bar and calling onSearchChanged, keeping the search bar as the
+ * single source of truth for all active filters.
  */
 function toggleSelectActivity(name) {
-  if (selectedActivityId === name) {
-    selectedActivityId = null;
-  } else {
-    selectedActivityId = name;
+  const currentQuery = searchInput ? searchInput.value : '';
+  const isAlreadySelected = selectedActivityId === name;
 
-    // Auto-switch to Map view on mobile when selecting an activity
+  // Build the id token with the filename quoted so spaces/dots are preserved.
+  const idToken = `id="${name}"`;
+  // Regex to find any existing id= token (quoted or bare).
+  const idRegex = /\bid[=:]\s*(?:"[^"]*"|'[^']*'|[A-Za-z0-9_.%-]+)/i;
+
+  let newQuery;
+  if (isAlreadySelected) {
+    // Toggle off: remove the id= token from the search bar.
+    newQuery = currentQuery.replace(idRegex, '').replace(/\s+/g, ' ').trim();
+  } else {
+    // Toggle on: replace any existing id= token, or append a new one.
+    if (idRegex.test(currentQuery)) {
+      newQuery = currentQuery.replace(idRegex, idToken).trim();
+    } else {
+      newQuery = currentQuery.trim() ? `${currentQuery.trim()} ${idToken}` : idToken;
+    }
+  }
+
+  if (searchInput) searchInput.value = newQuery;
+  onSearchChanged(newQuery);
+
+  // Auto-switch to Map view on mobile when selecting an activity.
+  if (!isAlreadySelected) {
     const dashboard = document.getElementById('dashboard-view');
     if (window.innerWidth <= 900 && dashboard && !dashboard.classList.contains('show-map')) {
       dashboard.classList.add('show-map');
@@ -833,7 +877,6 @@ function toggleSelectActivity(name) {
       }
     }
   }
-  applyFiltersAndRender();
 }
 
 function onThisYearClick() {
@@ -874,10 +917,10 @@ function updateShortcutButtons() {
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   if (btnThisYear) {
-    btnThisYear.classList.toggle('active', activeFilter.date === yearStr && !activeFilter.text && !activeFilter.id);
+    btnThisYear.classList.toggle('active', activeFilter.date === yearStr && !activeFilter.text);
   }
   if (btnThisMonth) {
-    btnThisMonth.classList.toggle('active', activeFilter.date === monthStr && !activeFilter.text && !activeFilter.id);
+    btnThisMonth.classList.toggle('active', activeFilter.date === monthStr && !activeFilter.text);
   }
 
   if (btnClear) {
