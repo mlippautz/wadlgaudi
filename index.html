@@ -115,7 +115,30 @@
               <div id="map" class="map-container"></div>
             </div>
             <div id="view-heatmap" class="view-panel hidden">
-              <!-- populated by views/heatmap.js -->
+              <div id="heatmap-map" class="map-container"></div>
+              <div id="heatmap-overlay-stats" class="heatmap-overlay-stats hidden">
+                <span id="heatmap-activity-count">0 activities</span>
+                <span id="heatmap-total-distance">0 km</span>
+              </div>
+              <div id="heatmap-controls-bar" class="heatmap-controls-bar">
+                <div class="heatmap-control-group">
+                  <label for="heatmap-theme">Color:</label>
+                  <select id="heatmap-theme" class="heatmap-select">
+                    <option value="orange" selected>Fire Orange</option>
+                    <option value="cyan">Electric Cyan</option>
+                    <option value="magenta">Neon Pink</option>
+                    <option value="lime">Acid Green</option>
+                  </select>
+                </div>
+                <div class="heatmap-control-group">
+                  <label for="heatmap-weight">Width:</label>
+                  <input type="range" id="heatmap-weight" min="1" max="16" value="1" class="heatmap-slider">
+                </div>
+                <div class="heatmap-control-group">
+                  <label for="heatmap-blur">Blur:</label>
+                  <input type="checkbox" id="heatmap-blur" checked class="heatmap-checkbox">
+                </div>
+              </div>
             </div>
           </section>
         </div>

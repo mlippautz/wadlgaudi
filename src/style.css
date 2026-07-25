@@ -1137,3 +1137,89 @@ body {
   color: #ba55d3;
   background: rgba(186, 85, 211, 0.08);
 }
+
+/* Heatmap View Controls & Overlay */
+.heatmap-overlay-stats {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1000;
+  background: rgba(10, 10, 10, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-color);
+  pointer-events: none;
+}
+
+.heatmap-controls-bar {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 1000;
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  font-size: 0.8rem;
+  color: var(--text-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.heatmap-control-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.heatmap-control-group label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.heatmap-select {
+  background: #181818;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  font-family: var(--font-sans);
+  outline: none;
+  cursor: pointer;
+}
+
+.heatmap-select:hover {
+  border-color: var(--border-color-hover);
+}
+
+.heatmap-slider {
+  accent-color: #ff5500;
+  width: 70px;
+  cursor: pointer;
+}
+
+.heatmap-checkbox {
+  accent-color: #ff5500;
+  cursor: pointer;
+}
+
+/* Blur effect on Leaflet Canvas overlay when enabled */
+.heatmap-canvas-blurred {
+  filter: blur(1.5px);
+}
+
