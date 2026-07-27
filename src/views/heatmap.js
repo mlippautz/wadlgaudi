@@ -49,19 +49,24 @@ function getScaledStyle() {
 
 /**
  * Custom Leaflet Layer for rendering additive polyline heatmaps on HTML5 Canvas.
+ * Combines GPU CSS transforms for 60 FPS zoom animations with GPU CSS element blur filters.
  */
 const HeatmapOverlay = L.Layer.extend({
   onAdd: function (mapInstance) {
     this._map = mapInstance;
     if (!this._canvas) {
-      this._canvas = L.DomUtil.create('canvas', 'leaflet-heatmap-layer');
+      this._canvas = L.DomUtil.create('canvas', 'leaflet-heatmap-layer leaflet-zoom-animated');
       this._canvas.style.position = 'absolute';
       this._canvas.style.top = '0';
       this._canvas.style.left = '0';
       this._canvas.style.pointerEvents = 'none';
+      this._canvas.style.transformOrigin = '0 0';
     }
     mapInstance.getPanes().overlayPane.appendChild(this._canvas);
-    mapInstance.on('move moveend zoomend resize', this.redraw, this);
+
+    // Bind map events for hardware-accelerated zoom scaling & crisp post-zoom redraws
+    mapInstance.on('zoomanim', this._animateZoom, this);
+    mapInstance.on('zoomend moveend resize', this._onMapChange, this);
     this.redraw();
   },
 
@@ -69,7 +74,29 @@ const HeatmapOverlay = L.Layer.extend({
     if (this._canvas && this._canvas.parentNode) {
       this._canvas.parentNode.removeChild(this._canvas);
     }
-    mapInstance.off('move moveend zoomend resize', this.redraw, this);
+    if (this._map) {
+      this._map.off('zoomanim', this._animateZoom, this);
+      this._map.off('zoomend moveend resize', this._onMapChange, this);
+    }
+  },
+
+  _animateZoom: function (e) {
+    if (!this._map || !this._canvas || !this._drawnZoom) return;
+
+    // Scale & translate canvas via GPU CSS transform during zoom gesture (0ms JS projection latency)
+    const scale = this._map.getZoomScale(e.zoom, this._drawnZoom);
+    const newLayerTopLeft = this._map._latLngToNewLayerPoint(this._topLeftLatLng, e.zoom, e.center);
+
+    L.DomUtil.setTransform(this._canvas, newLayerTopLeft, scale);
+  },
+
+  _onMapChange: function () {
+    if (this._rafId) {
+      cancelAnimationFrame(this._rafId);
+    }
+    this._rafId = requestAnimationFrame(() => {
+      this.redraw();
+    });
   },
 
   redraw: function () {
@@ -78,28 +105,36 @@ const HeatmapOverlay = L.Layer.extend({
     const size = this._map.getSize();
     if (size.x <= 0 || size.y <= 0) return;
 
-    // Align canvas dimensions and position to map pane offset
-    this._canvas.width = size.x;
-    this._canvas.height = size.y;
-    
-    const topLeft = this._map.containerPointToLayerPoint([0, 0]);
-    L.DomUtil.setPosition(this._canvas, topLeft);
+    const zoom = this._map.getZoom();
+    this._drawnZoom = zoom;
+
+    // Position canvas at layer top-left at scale 1 for crisp redraw
+    const containerTopLeft = L.point(0, 0);
+    this._topLeftLatLng = this._map.containerPointToLatLng(containerTopLeft);
+    const layerTopLeft = this._map.containerPointToLayerPoint(containerTopLeft);
+    L.DomUtil.setTransform(this._canvas, layerTopLeft, 1);
+
+    if (this._canvas.width !== size.x || this._canvas.height !== size.y) {
+      this._canvas.width = size.x;
+      this._canvas.height = size.y;
+    }
 
     const ctx = this._canvas.getContext('2d');
     ctx.clearRect(0, 0, size.x, size.y);
 
     if (!currentActivities || currentActivities.length === 0) return;
 
+    // GPU CSS Blur Filter on DOM canvas element instead of CPU-bound ctx.filter
+    if (blurEnabled) {
+      const blurRadius = Math.max(1, Math.round(1.2 * Math.pow(1.06, zoom - 10)));
+      this._canvas.style.filter = `blur(${blurRadius}px)`;
+    } else {
+      this._canvas.style.filter = 'none';
+    }
+
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-
-    if (blurEnabled) {
-      const zoom = this._map.getZoom();
-      const blurRadius = Math.max(1, Math.round(1.2 * Math.pow(1.06, zoom - 10)));
-      ctx.filter = `blur(${blurRadius}px)`;
-    } else {
-      ctx.filter = 'none';
-    }
+    ctx.filter = 'none';
 
     const style = getScaledStyle();
     ctx.strokeStyle = style.color;
